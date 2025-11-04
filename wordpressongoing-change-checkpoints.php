@@ -5,7 +5,7 @@
  * Description: Track changes to Pages, Posts, Custom Post Types and Taxonomies within active checkpoints. Only one checkpoint can be active at a time.
  * Version: 1.0.0
  * Author: Joan Cochachi
- * Author URI: https://joancochachi.dev/
+ * Author URI: https://wordpressongoing.com/
  * Text Domain: change-checkpoints
  * Domain Path: /languages
  * Requires at least: 5.0
