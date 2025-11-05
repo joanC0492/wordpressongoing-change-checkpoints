@@ -95,11 +95,18 @@ class CCP_Event_Tracker
     add_action('switch_theme', array($this, 'track_theme_switch'), 10, 3);
     add_action('delete_theme', array($this, 'track_theme_delete'), 10, 1);
 
-    // Navigation menu tracking hooks
+    // Navigation menu tracking
     add_action('wp_create_nav_menu', array($this, 'track_nav_menu_create'), 10, 2);
     add_action('wp_update_nav_menu', array($this, 'track_nav_menu_update'), 10, 1);
-    add_action('wp_delete_nav_menu', array($this, 'track_nav_menu_delete'), 10, 1);
+    // Note: Using delete_term instead of wp_delete_nav_menu for better data access
+    // add_action('wp_delete_nav_menu', array($this, 'track_nav_menu_delete'), 10, 1);
     add_action('wp_update_nav_menu_item', array($this, 'track_nav_menu_item_update'), 10, 3);
+    
+    // Track menu item deletions - special handling since they're nav_menu_item posts
+    add_action('before_delete_post', array($this, 'track_nav_menu_item_delete'), 5, 2);
+    
+    // Track menu deletion via delete_term hook - provides better access to menu data
+    add_action('delete_term', array($this, 'track_nav_menu_term_delete'), 10, 4);
   }
 
   /**
@@ -728,8 +735,36 @@ class CCP_Event_Tracker
       return;
     }
 
-    $menu_name = is_object($menu_term) && isset($menu_term->name) ? $menu_term->name : 'Menu';
-    $menu_id = is_object($menu_term) && isset($menu_term->term_id) ? $menu_term->term_id : 0;
+    $menu_name = 'Menu';
+    $menu_id = 0;
+
+    // Handle different types of input from WordPress
+    if (is_object($menu_term)) {
+      // Standard WP_Term object
+      if (isset($menu_term->name)) {
+        $menu_name = $menu_term->name;
+      }
+      if (isset($menu_term->term_id)) {
+        $menu_id = $menu_term->term_id;
+      }
+    } elseif (is_numeric($menu_term)) {
+      // Sometimes WordPress passes just the menu ID
+      $menu_obj = wp_get_nav_menu_object($menu_term);
+      if ($menu_obj) {
+        $menu_name = $menu_obj->name;
+        $menu_id = $menu_obj->term_id;
+      }
+    } elseif (is_string($menu_term)) {
+      // Sometimes it might pass the menu name/slug
+      $menu_obj = wp_get_nav_menu_object($menu_term);
+      if ($menu_obj) {
+        $menu_name = $menu_obj->name;
+        $menu_id = $menu_obj->term_id;
+      } else {
+        // Use the string as the name if we can't find the object
+        $menu_name = $menu_term;
+      }
+    }
 
     // Track the event
     $this->track_event(
@@ -739,7 +774,9 @@ class CCP_Event_Tracker
       $menu_name,
       'delete',
       array(
-        'menu_id' => $menu_id
+        'menu_id' => $menu_id,
+        'menu_name' => $menu_name,
+        'method' => 'wp_delete_nav_menu'
       )
     );
   }
@@ -818,6 +855,94 @@ class CCP_Event_Tracker
       $menu_item_db_id,
       $menu_name . ' → ' . $item_title,
       $action,
+      $item_details
+    );
+  }
+
+  /**
+   * Track navigation menu term deletion (alternative method)
+   */
+  public function track_nav_menu_term_delete($term_id, $tt_id, $taxonomy, $deleted_term)
+  {
+    // Only track nav_menu taxonomy deletions
+    if ($taxonomy !== 'nav_menu') {
+      return;
+    }
+
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    // Get menu name from the deleted term
+    $menu_name = 'Menu';
+    if (is_object($deleted_term) && isset($deleted_term->name)) {
+      $menu_name = $deleted_term->name;
+    }
+
+    // Track the event
+    $this->track_event(
+      'menu',
+      'nav_menu',
+      $term_id,
+      $menu_name,
+      'delete',
+      array(
+        'menu_id' => $term_id,
+        'menu_name' => $menu_name,
+        'method' => 'delete_term'
+      )
+    );
+  }
+
+  /**
+   * Track navigation menu item deletion
+   */
+  public function track_nav_menu_item_delete($post_id, $post)
+  {
+    // Only track nav_menu_item posts (which we normally exclude)
+    if ($post->post_type !== 'nav_menu_item') {
+      return;
+    }
+
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    // Get menu information before the item is deleted
+    $menu_terms = wp_get_post_terms($post_id, 'nav_menu');
+    $menu_id = 0;
+    $menu_name = 'Menu';
+    
+    if (!is_wp_error($menu_terms) && !empty($menu_terms)) {
+      $menu_id = $menu_terms[0]->term_id;
+      $menu_name = $menu_terms[0]->name;
+    }
+
+    // Get the menu item title
+    $item_title = $post->post_title ?: 'Menu Item';
+
+    // Get additional details about the deleted item
+    $menu_item_meta = get_post_meta($post_id);
+    $item_type = isset($menu_item_meta['_menu_item_type'][0]) ? $menu_item_meta['_menu_item_type'][0] : 'unknown';
+    $object_type = isset($menu_item_meta['_menu_item_object'][0]) ? $menu_item_meta['_menu_item_object'][0] : '';
+
+    $item_details = array(
+      'menu_id' => $menu_id,
+      'item_id' => $post_id,
+      'item_title' => $item_title,
+      'item_type' => $item_type,
+      'object_type' => $object_type
+    );
+
+    // Track the deletion event
+    $this->track_event(
+      'menu',
+      'nav_menu_item',
+      $post_id,
+      $menu_name . ' → ' . $item_title,
+      'delete',
       $item_details
     );
   }

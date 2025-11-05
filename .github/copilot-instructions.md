@@ -25,6 +25,7 @@ Simplified single-table structure with automatic event recording. The `object_ki
 - `term` - Taxonomies (categories, tags, custom taxonomies)  
 - `media` - Media library files (images, videos, audio, documents)
 - `theme` - WordPress themes (activation and deletion)
+- `menu` - Navigation menus and menu items
 
 **Important**: Uses `VARCHAR(32)` instead of `ENUM` for better flexibility and easier migrations.
 
@@ -61,6 +62,19 @@ The `details_json` field stores event-specific metadata:
 ```json
 {
   // Minimal data - no confusing details displayed in UI
+}
+```
+
+**For Menu Events:**
+
+```json
+{
+  "menu_id": 123,
+  "menu_name": "Main Navigation",
+  "menu_item_type": "page", // For menu items: page, post, custom, category, tag
+  "menu_item_object": "page", // The source object type
+  "menu_item_object_id": 456, // ID of the source object
+  "method": "delete_term" // Tracking method used
 }
 ```
 
@@ -121,6 +135,49 @@ The interface automatically detects media events using either:
 ```php
 $event->object_kind === 'media' || in_array($event->object_subtype, array('image', 'video', 'audio', 'application'))
 ```
+
+### Navigation Menu Tracking
+
+The plugin automatically tracks WordPress navigation menu changes with comprehensive coverage:
+
+- **Menu creation**: Complete menu setup via `wp_create_nav_menu` hook
+- **Menu updates**: Menu name/location changes via `wp_update_nav_menu` hook  
+- **Menu deletion**: Menu removal via `delete_term` hook (more reliable than `wp_delete_nav_menu`)
+- **Menu item operations**: Item additions, updates, and deletions with detailed type tracking
+- **Accurate naming**: Menu deletions show actual menu names (e.g., "Main Navigation") instead of generic "Menu"
+
+#### Menu Event Types
+
+1. **Menu Management**:
+   - `object_kind = 'menu'`, `object_subtype = 'nav_menu'`
+   - Actions: `create`, `update`, `delete`
+   - Shows menu name and basic menu information
+
+2. **Menu Item Management**:
+   - `object_kind = 'menu'`, `object_subtype = 'nav_menu_item'`
+   - Actions: `create`, `update`, `delete`
+   - Enhanced type display showing source type (Page, Post, Custom Link, Category, etc.)
+
+#### Menu Item Type Detection
+
+Menu items display enhanced information based on their source:
+
+```php
+// Menu item types shown in interface
+$item_types = array(
+    'post_type' => 'Page/Post', // Shows actual post type
+    'taxonomy' => 'Category/Tag', // Shows actual taxonomy  
+    'custom' => 'Custom Link',
+    'post_type_archive' => 'Archive'
+);
+```
+
+#### Implementation Notes
+
+- **Hook Optimization**: Uses `delete_term` instead of `wp_delete_nav_menu` for better data access during deletion
+- **Duplicate Prevention**: Single hook per operation to avoid duplicate event logging
+- **Type Enhancement**: Menu items show meaningful types instead of redundant menu item names
+- **Error Handling**: Graceful fallbacks when menu data is not available
 
 ### Theme Tracking
 
@@ -389,4 +446,127 @@ if ($event->object_kind === 'theme') {
 <!-- Content Column (for themes) -->
 <strong>Twenty Twenty-Four</strong>
 <!-- No additional details for clean interface -->
+
+<!-- Type Column (for menus) -->
+<span class="ccp-object-type">Menu</span>
+<!-- Menu items show specific types: Page, Post, Custom Link, etc. -->
+
+<!-- Content Column (for menu items) -->
+<strong>Menu Item Title</strong>
+<small class="ccp-details">Main Navigation</small>
 ```
+
+## Recent Enhancements (v2.3.0)
+
+### Complete Navigation Menu Tracking System
+
+**Major Addition**: Comprehensive tracking of WordPress navigation menu operations:
+
+1. **Full Menu Lifecycle Tracking**:
+   - Menu creation via `wp_create_nav_menu` hook
+   - Menu updates via `wp_update_nav_menu` hook  
+   - Menu deletion via `delete_term` hook (more reliable than `wp_delete_nav_menu`)
+   - Menu item additions, updates, and deletions
+
+2. **Enhanced Menu Deletion Accuracy**:
+   - **Problem Solved**: Menu deletions previously showed generic "Menu" name
+   - **Solution Implemented**: Using `delete_term` hook provides access to actual menu name before deletion
+   - **Result**: Deletions now show specific menu names (e.g., "New Header Es", "Main Navigation")
+
+3. **Menu Item Type Enhancement**:
+   - Menu items now display meaningful types instead of redundant names
+   - Shows source types: "Page", "Post", "Custom Link", "Category", "Tag", etc.
+   - Enhanced user understanding of what each menu item represents
+
+4. **Hook Strategy Optimization**:
+   - Disabled `wp_delete_nav_menu` hook due to limited data access at deletion time
+   - Primary reliance on `delete_term` hook for accurate menu name capture
+   - Duplicate prevention through strategic hook selection
+
+### Implementation Architecture
+
+**Navigation Menu Hooks System:**
+
+```php
+// Core menu operations
+add_action('wp_create_nav_menu', array($this, 'track_nav_menu_create'), 10, 2);
+add_action('wp_update_nav_menu', array($this, 'track_nav_menu_update'), 10, 1);
+add_action('wp_update_nav_menu_item', array($this, 'track_nav_menu_item_update'), 10, 3);
+
+// Menu item deletion (posts)
+add_action('before_delete_post', array($this, 'track_nav_menu_item_delete'), 5, 2);
+
+// Menu deletion (terms) - primary method
+add_action('delete_term', array($this, 'track_nav_menu_term_delete'), 10, 4);
+```
+
+**Menu Event Database Structure:**
+
+```php
+// Menu events
+object_kind = 'menu'
+object_subtype = 'nav_menu' | 'nav_menu_item'
+action = 'create' | 'update' | 'delete'
+
+// Enhanced details JSON
+{
+  "menu_id": 123,
+  "menu_name": "Actual Menu Name",
+  "menu_item_type": "page",
+  "menu_item_object": "page", 
+  "menu_item_object_id": 456,
+  "method": "delete_term"
+}
+```
+
+### Interface Enhancements
+
+1. **Menu Type Display**:
+   - Menus show as "Menu" type in main column
+   - Menu items show specific source types (Page, Post, Custom Link, etc.)
+   - Clear visual distinction between menu management and item management
+
+2. **Menu Content Display**:
+   - Menu operations show menu name prominently
+   - Menu item operations show item title with menu name as subtitle
+   - Enhanced readability and context for all menu-related events
+
+3. **Event Classification Logic**:
+
+   ```php
+   // Menu detection for interface formatting
+   if ($event->object_kind === 'menu') {
+       if ($event->object_subtype === 'nav_menu_item') {
+           $formatted->is_menu_item = true;
+           // Show enhanced menu item types
+       } else {
+           $formatted->is_menu = true;
+           // Show standard menu operations
+       }
+   }
+   ```
+
+### Testing and Validation
+
+**Verified Workflows**:
+
+✅ Menu creation with custom names  
+✅ Menu updates (name/location changes)  
+✅ Menu item additions (pages, posts, custom links)  
+✅ Menu item modifications and reordering  
+✅ Menu item deletions with proper tracking  
+✅ Complete menu deletions with accurate naming  
+✅ Interface display with enhanced type information  
+
+**Critical Fix Validated**:
+- Menu deletion naming issue resolved
+- Previously: "Menu" (generic)
+- Now: "New Header Es", "Main Navigation", etc. (actual names)
+
+### Migration and Compatibility
+
+**Database Compatibility**: All menu events integrate seamlessly with existing `wp_ccp_events` table structure using the established `object_kind` and `object_subtype` pattern.
+
+**Backward Compatibility**: Existing event display logic enhanced without breaking changes to non-menu event types.
+
+**Performance Impact**: Minimal - uses WordPress native hooks with efficient data access patterns.
