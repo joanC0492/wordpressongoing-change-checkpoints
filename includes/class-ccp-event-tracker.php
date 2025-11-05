@@ -22,11 +22,6 @@ class CCP_Event_Tracker
   private $database;
 
   /**
-   * Checkpoint manager instance
-   */
-  private $checkpoint_manager;
-
-  /**
    * Post types to exclude from tracking
    */
   private $excluded_post_types = array(
@@ -47,7 +42,8 @@ class CCP_Event_Tracker
    */
   public function __construct()
   {
-    // Database and checkpoint manager will be set after instantiation
+    // Initialize hooks immediately since we always track now
+    $this->init_hooks();
   }
 
   /**
@@ -59,17 +55,6 @@ class CCP_Event_Tracker
       $this->database = ccp()->database;
     }
     return $this->database;
-  }
-
-  /**
-   * Get checkpoint manager instance
-   */
-  private function get_checkpoint_manager()
-  {
-    if (!$this->checkpoint_manager) {
-      $this->checkpoint_manager = ccp()->checkpoint_manager;
-    }
-    return $this->checkpoint_manager;
   }
 
   /**
@@ -96,11 +81,6 @@ class CCP_Event_Tracker
    */
   public function track_post_save($post_id, $post, $update)
   {
-    // Skip if no active checkpoint
-    if (!$this->get_checkpoint_manager()->has_active_checkpoint()) {
-      return;
-    }
-
     // Skip autosaves and revisions
     if (wp_is_post_autosave($post_id) || wp_is_post_revision($post_id)) {
       return;
@@ -114,6 +94,11 @@ class CCP_Event_Tracker
     // Skip if this is not a public post type
     $post_type_object = get_post_type_object($post->post_type);
     if (!$post_type_object || !$post_type_object->public) {
+      return;
+    }
+
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
       return;
     }
 
@@ -142,11 +127,6 @@ class CCP_Event_Tracker
    */
   public function track_post_status_change($new_status, $old_status, $post)
   {
-    // Skip if no active checkpoint
-    if (!$this->get_checkpoint_manager()->has_active_checkpoint()) {
-      return;
-    }
-
     // Skip if status didn't actually change
     if ($new_status === $old_status) {
       return;
@@ -159,6 +139,11 @@ class CCP_Event_Tracker
 
     // Skip excluded post types
     if (in_array($post->post_type, $this->excluded_post_types)) {
+      return;
+    }
+
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
       return;
     }
 
@@ -183,13 +168,13 @@ class CCP_Event_Tracker
    */
   public function track_post_delete($post_id, $post)
   {
-    // Skip if no active checkpoint
-    if (!$this->get_checkpoint_manager()->has_active_checkpoint()) {
+    // Skip excluded post types
+    if (in_array($post->post_type, $this->excluded_post_types)) {
       return;
     }
 
-    // Skip excluded post types
-    if (in_array($post->post_type, $this->excluded_post_types)) {
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
       return;
     }
 
@@ -208,11 +193,6 @@ class CCP_Event_Tracker
    */
   public function track_post_meta_update($meta_id, $post_id, $meta_key, $meta_value)
   {
-    // Skip if no active checkpoint
-    if (!$this->get_checkpoint_manager()->has_active_checkpoint()) {
-      return;
-    }
-
     // Only track specific meta keys
     $tracked_meta_keys = array(
       '_thumbnail_id',
@@ -226,6 +206,11 @@ class CCP_Event_Tracker
 
     $post = get_post($post_id);
     if (!$post || in_array($post->post_type, $this->excluded_post_types)) {
+      return;
+    }
+
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
       return;
     }
 
@@ -258,14 +243,14 @@ class CCP_Event_Tracker
    */
   public function track_term_create($term_id, $tt_id, $taxonomy)
   {
-    // Skip if no active checkpoint
-    if (!$this->get_checkpoint_manager()->has_active_checkpoint()) {
-      return;
-    }
-
     // Skip if not a public taxonomy
     $taxonomy_object = get_taxonomy($taxonomy);
     if (!$taxonomy_object || !$taxonomy_object->public) {
+      return;
+    }
+
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
       return;
     }
 
@@ -289,14 +274,14 @@ class CCP_Event_Tracker
    */
   public function track_term_edit($term_id, $tt_id, $taxonomy)
   {
-    // Skip if no active checkpoint
-    if (!$this->get_checkpoint_manager()->has_active_checkpoint()) {
-      return;
-    }
-
     // Skip if not a public taxonomy
     $taxonomy_object = get_taxonomy($taxonomy);
     if (!$taxonomy_object || !$taxonomy_object->public) {
+      return;
+    }
+
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
       return;
     }
 
@@ -324,14 +309,14 @@ class CCP_Event_Tracker
    */
   public function track_term_delete($term_id, $tt_id, $taxonomy, $deleted_term)
   {
-    // Skip if no active checkpoint
-    if (!$this->get_checkpoint_manager()->has_active_checkpoint()) {
-      return;
-    }
-
     // Skip if not a public taxonomy
     $taxonomy_object = get_taxonomy($taxonomy);
     if (!$taxonomy_object || !$taxonomy_object->public) {
+      return;
+    }
+
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
       return;
     }
 
@@ -350,13 +335,7 @@ class CCP_Event_Tracker
    */
   private function track_event($object_kind, $object_subtype, $object_id, $object_name, $action, $details = null)
   {
-    $active_checkpoint = $this->get_checkpoint_manager()->get_active_checkpoint();
-    if (!$active_checkpoint) {
-      return;
-    }
-
     return $this->get_database()->add_event(
-      $active_checkpoint->id,
       $object_kind,
       $object_subtype,
       $object_id,

@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: Wordpressongoing Change Checkpoints
+ * Plugin Name: WordPress Change Tracker
  * Plugin URI: https://wordpress.org/plugins/wordpressongoing-change-checkpoints
- * Description: Track changes to Pages, Posts, Custom Post Types and Taxonomies within active checkpoints. Only one checkpoint can be active at a time.
- * Version: 1.0.0
+ * Description: Track all changes to Pages, Posts, Custom Post Types and Taxonomies automatically. View a complete log of all WordPress content modifications.
+ * Version: 2.0.0
  * Author: Joan Cochachi
  * Author URI: https://wordpressongoing.com/
  * Text Domain: change-checkpoints
@@ -22,7 +22,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('CCP_VERSION', '1.0.0');
+define('CCP_VERSION', '2.0.0');
 define('CCP_PLUGIN_FILE', __FILE__);
 define('CCP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('CCP_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -43,11 +43,6 @@ class Change_Checkpoints_Plugin
    * Database handler instance
    */
   public $database;
-
-  /**
-   * Checkpoint manager instance
-   */
-  public $checkpoint_manager;
 
   /**
    * Admin interface instance
@@ -103,7 +98,6 @@ class Change_Checkpoints_Plugin
   {
     // Core classes
     require_once CCP_PLUGIN_DIR . 'includes/class-ccp-database.php';
-    require_once CCP_PLUGIN_DIR . 'includes/class-ccp-checkpoint-manager.php';
     require_once CCP_PLUGIN_DIR . 'includes/class-ccp-event-tracker.php';
 
     // Admin classes
@@ -118,7 +112,6 @@ class Change_Checkpoints_Plugin
   private function init_components()
   {
     $this->database = new CCP_Database();
-    $this->checkpoint_manager = new CCP_Checkpoint_Manager();
     $this->event_tracker = new CCP_Event_Tracker();
 
     if (is_admin()) {
@@ -164,10 +157,8 @@ class Change_Checkpoints_Plugin
    */
   public function on_init()
   {
-    // Initialize event tracking if we have an active checkpoint
-    if ($this->checkpoint_manager->has_active_checkpoint()) {
-      $this->event_tracker->init_hooks();
-    }
+    // Event tracking is now always initialized in the constructor
+    // No need to check for active checkpoints
   }
 
   /**
@@ -186,11 +177,8 @@ class Change_Checkpoints_Plugin
    */
   public function deactivate()
   {
-    // Close any active checkpoint
-    $active_checkpoint = $this->checkpoint_manager->get_active_checkpoint();
-    if ($active_checkpoint) {
-      $this->checkpoint_manager->close_checkpoint($active_checkpoint->id);
-    }
+    // No need to close checkpoints anymore
+    // Plugin will stop tracking when deactivated
   }
 
   /**

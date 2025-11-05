@@ -31,10 +31,7 @@ class CCP_Admin
     add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
 
     // AJAX handlers
-    add_action('wp_ajax_ccp_create_checkpoint', array($this, 'ajax_create_checkpoint'));
-    add_action('wp_ajax_ccp_close_checkpoint', array($this, 'ajax_close_checkpoint'));
-    add_action('wp_ajax_ccp_delete_checkpoint', array($this, 'ajax_delete_checkpoint'));
-    add_action('wp_ajax_ccp_bulk_delete', array($this, 'ajax_bulk_delete'));
+    add_action('wp_ajax_ccp_clear_all', array($this, 'ajax_clear_all'));
   }
 
   /**
@@ -44,8 +41,8 @@ class CCP_Admin
   {
     // Main menu page
     $this->page_hooks['overview'] = add_menu_page(
-      __('Change Checkpoints', 'change-checkpoints'),
-      __('Change Checkpoints', 'change-checkpoints'),
+      __('Change Tracker', 'change-checkpoints'),
+      __('Change Tracker', 'change-checkpoints'),
       'manage_options',
       'change-checkpoints',
       array($this, 'display_overview_page'),
@@ -56,21 +53,11 @@ class CCP_Admin
     // Overview submenu (same as main page)
     $this->page_hooks['overview_sub'] = add_submenu_page(
       'change-checkpoints',
-      __('Overview', 'change-checkpoints'),
-      __('Overview', 'change-checkpoints'),
+      __('Changes', 'change-checkpoints'),
+      __('Changes', 'change-checkpoints'),
       'manage_options',
       'change-checkpoints',
       array($this, 'display_overview_page')
-    );
-
-    // View checkpoint page (hidden from menu)
-    $this->page_hooks['view'] = add_submenu_page(
-      null, // Hidden from menu
-      __('View Checkpoint', 'change-checkpoints'),
-      __('View Checkpoint', 'change-checkpoints'),
-      'manage_options',
-      'change-checkpoints-view',
-      array($this, 'display_view_checkpoint_page')
     );
   }
 
@@ -91,27 +78,9 @@ class CCP_Admin
     $action = isset($_REQUEST['action']) ? sanitize_text_field($_REQUEST['action']) : '';
 
     switch ($action) {
-      case 'create_checkpoint':
-        if (wp_verify_nonce($_REQUEST['_wpnonce'], 'ccp_create_checkpoint')) {
-          $this->handle_create_checkpoint();
-        }
-        break;
-
-      case 'close_checkpoint':
-        if (wp_verify_nonce($_REQUEST['_wpnonce'], 'ccp_close_checkpoint')) {
-          $this->handle_close_checkpoint();
-        }
-        break;
-
-      case 'delete_checkpoint':
-        if (wp_verify_nonce($_REQUEST['_wpnonce'], 'ccp_delete_checkpoint')) {
-          $this->handle_delete_checkpoint();
-        }
-        break;
-
-      case 'bulk_delete':
-        if (wp_verify_nonce($_REQUEST['_wpnonce'], 'ccp_bulk_action')) {
-          $this->handle_bulk_delete();
+      case 'clear_all':
+        if (wp_verify_nonce($_REQUEST['_wpnonce'], 'ccp_clear_all')) {
+          $this->handle_clear_all();
         }
         break;
     }
@@ -149,12 +118,8 @@ class CCP_Admin
       'ajaxUrl' => admin_url('admin-ajax.php'),
       'nonce' => wp_create_nonce('ccp_admin_nonce'),
       'strings' => array(
-        'confirmDelete' => __('This will permanently remove the checkpoint and its recorded changes. Continue?', 'change-checkpoints'),
-        'confirmBulkDelete' => __('This will delete selected checkpoints and their changes. This action cannot be undone.', 'change-checkpoints'),
-        'confirmDeleteAll' => __('This will delete all checkpoints and their changes. This action cannot be undone.', 'change-checkpoints'),
-        'creating' => __('Creating...', 'change-checkpoints'),
-        'closing' => __('Closing...', 'change-checkpoints'),
-        'deleting' => __('Deleting...', 'change-checkpoints'),
+        'confirmClearAll' => __('This will permanently delete all recorded changes. This action cannot be undone. Continue?', 'change-checkpoints'),
+        'clearing' => __('Clearing...', 'change-checkpoints'),
         'error' => __('An error occurred. Please try again.', 'change-checkpoints'),
         'success' => __('Operation completed successfully.', 'change-checkpoints')
       )
@@ -166,69 +131,113 @@ class CCP_Admin
    */
   public function display_overview_page()
   {
-    $checkpoint_manager = ccp()->checkpoint_manager;
-    $active_checkpoint = $checkpoint_manager->get_active_checkpoint();
-
     // Handle pagination
     $current_page = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
-    $per_page = 20;
+    $per_page = 50;
     $search = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
 
-    // Get checkpoints
+    // Get events
     $args = array(
       'page' => $current_page,
       'per_page' => $per_page,
       'search' => $search
     );
 
-    $checkpoints = $checkpoint_manager->get_checkpoints($args);
-    $total_checkpoints = $checkpoint_manager->get_checkpoints_count($args);
-    $total_pages = ceil($total_checkpoints / $per_page);
+    $events = $this->get_formatted_events($args);
+    $total_events = ccp()->database->get_events_count($args);
+    $total_pages = ceil($total_events / $per_page);
 
     // Include template
     include CCP_PLUGIN_DIR . 'admin/views/overview.php';
   }
 
   /**
-   * Display view checkpoint page
+   * Get formatted events for display
    */
-  public function display_view_checkpoint_page()
+  private function get_formatted_events($args)
   {
-    $checkpoint_id = isset($_GET['checkpoint_id']) ? intval($_GET['checkpoint_id']) : 0;
+    $events = ccp()->database->get_events($args);
+    $formatted_events = array();
 
-    if (!$checkpoint_id) {
-      wp_die(__('Invalid checkpoint ID.', 'change-checkpoints'));
+    foreach ($events as $event) {
+      $formatted_event = $this->format_event($event);
+      if ($formatted_event) {
+        $formatted_events[] = $formatted_event;
+      }
     }
 
-    $checkpoint_manager = ccp()->checkpoint_manager;
-    $checkpoint = $checkpoint_manager->get_checkpoint($checkpoint_id);
-
-    if (!$checkpoint) {
-      wp_die(__('Checkpoint not found.', 'change-checkpoints'));
-    }
-
-    $events = $checkpoint_manager->get_formatted_checkpoint_events($checkpoint_id);
-    $active_checkpoint = $checkpoint_manager->get_active_checkpoint();
-    $is_active = $active_checkpoint && $active_checkpoint->id == $checkpoint_id;
-
-    // Include template
-    include CCP_PLUGIN_DIR . 'admin/views/view-checkpoint.php';
+    return $formatted_events;
   }
 
   /**
-   * Handle create checkpoint
+   * Format a single event for display
    */
-  private function handle_create_checkpoint()
+  private function format_event($event)
   {
-    $title = isset($_POST['checkpoint_title']) ? sanitize_text_field($_POST['checkpoint_title']) : '';
-    $note = isset($_POST['checkpoint_note']) ? wp_kses_post($_POST['checkpoint_note']) : '';
+    $formatted = new stdClass();
+    $formatted->id = $event->id;
+    $formatted->timestamp = $event->timestamp;
+    $formatted->action = $event->action;
+    $formatted->object_name = $event->object_name;
+    $formatted->author_id = $event->author_id;
 
-    $checkpoint_id = ccp()->checkpoint_manager->create_checkpoint($title, $note);
-
-    if ($checkpoint_id) {
-      $this->add_admin_notice(__('Checkpoint created and set as active.', 'change-checkpoints'), 'success');
+    // Set object type display name
+    if ($event->object_kind === 'post') {
+      $post_type_object = get_post_type_object($event->object_subtype);
+      $formatted->object_type = $post_type_object ? $post_type_object->labels->singular_name : ucfirst($event->object_subtype);
+    } elseif ($event->object_kind === 'term') {
+      $taxonomy_object = get_taxonomy($event->object_subtype);
+      $formatted->object_type = $taxonomy_object ? $taxonomy_object->labels->singular_name : ucfirst($event->object_subtype);
     } else {
-      $this->add_admin_notice(__('Failed to create checkpoint.', 'change-checkpoints'), 'error');
+      $formatted->object_type = ucfirst($event->object_subtype);
+    }
+
+    // Set action display text
+    switch ($event->action) {
+      case 'create':
+        $formatted->action_text = __('create', 'change-checkpoints');
+        break;
+      case 'update':
+        $formatted->action_text = __('update', 'change-checkpoints');
+        break;
+      case 'delete':
+        $formatted->action_text = __('delete', 'change-checkpoints');
+        break;
+      default:
+        $formatted->action_text = $event->action;
+    }
+
+    // Parse details if available
+    $formatted->details = array();
+    if (!empty($event->details_json)) {
+      $details = json_decode($event->details_json, true);
+      if (is_array($details)) {
+        $formatted->details = $details;
+      }
+    }
+
+    // Get author name
+    if ($event->author_id) {
+      $author = get_userdata($event->author_id);
+      $formatted->author_name = $author ? $author->display_name : __('Unknown', 'change-checkpoints');
+    } else {
+      $formatted->author_name = __('System', 'change-checkpoints');
+    }
+
+    return $formatted;
+  }
+
+  /**
+   * Handle clear all events
+   */
+  private function handle_clear_all()
+  {
+    $result = ccp()->database->delete_all_events();
+
+    if ($result) {
+      $this->add_admin_notice(__('All changes have been cleared.', 'change-checkpoints'), 'success');
+    } else {
+      $this->add_admin_notice(__('Failed to clear changes.', 'change-checkpoints'), 'error');
     }
 
     wp_redirect(admin_url('admin.php?page=change-checkpoints'));
@@ -236,109 +245,9 @@ class CCP_Admin
   }
 
   /**
-   * Handle close checkpoint
+   * AJAX: Clear all events
    */
-  private function handle_close_checkpoint()
-  {
-    $checkpoint_id = isset($_POST['checkpoint_id']) ? intval($_POST['checkpoint_id']) : 0;
-
-    if (!$checkpoint_id) {
-      $this->add_admin_notice(__('Invalid checkpoint ID.', 'change-checkpoints'), 'error');
-      wp_redirect(admin_url('admin.php?page=change-checkpoints'));
-      exit;
-    }
-
-    $result = ccp()->checkpoint_manager->close_checkpoint($checkpoint_id);
-
-    if ($result) {
-      $this->add_admin_notice(__('Checkpoint closed. Changes will no longer be recorded until a new checkpoint is created.', 'change-checkpoints'), 'success');
-    } else {
-      $this->add_admin_notice(__('Failed to close checkpoint.', 'change-checkpoints'), 'error');
-    }
-
-    $redirect_url = isset($_POST['redirect_to']) ? esc_url_raw($_POST['redirect_to']) : admin_url('admin.php?page=change-checkpoints');
-    wp_redirect($redirect_url);
-    exit;
-  }
-
-  /**
-   * Handle delete checkpoint
-   */
-  private function handle_delete_checkpoint()
-  {
-    $checkpoint_id = isset($_POST['checkpoint_id']) ? intval($_POST['checkpoint_id']) : 0;
-
-    if (!$checkpoint_id) {
-      $this->add_admin_notice(__('Invalid checkpoint ID.', 'change-checkpoints'), 'error');
-      wp_redirect(admin_url('admin.php?page=change-checkpoints'));
-      exit;
-    }
-
-    $result = ccp()->checkpoint_manager->delete_checkpoint($checkpoint_id);
-
-    if ($result) {
-      $this->add_admin_notice(__('Checkpoint deleted.', 'change-checkpoints'), 'success');
-    } else {
-      $this->add_admin_notice(__('Failed to delete checkpoint.', 'change-checkpoints'), 'error');
-    }
-
-    wp_redirect(admin_url('admin.php?page=change-checkpoints'));
-    exit;
-  }
-
-  /**
-   * Handle bulk delete
-   */
-  private function handle_bulk_delete()
-  {
-    $action = isset($_POST['action']) ? sanitize_text_field($_POST['action']) : '';
-    $action2 = isset($_POST['action2']) ? sanitize_text_field($_POST['action2']) : '';
-
-    if ($action === 'delete' || $action2 === 'delete') {
-      $checkpoint_ids = isset($_POST['checkpoint']) ? array_map('intval', $_POST['checkpoint']) : array();
-
-      if (empty($checkpoint_ids)) {
-        $this->add_admin_notice(__('No checkpoints selected.', 'change-checkpoints'), 'error');
-        wp_redirect(admin_url('admin.php?page=change-checkpoints'));
-        exit;
-      }
-
-      $deleted_count = 0;
-      foreach ($checkpoint_ids as $checkpoint_id) {
-        if (ccp()->checkpoint_manager->delete_checkpoint($checkpoint_id)) {
-          $deleted_count++;
-        }
-      }
-
-      if ($deleted_count > 0) {
-        $this->add_admin_notice(
-          sprintf(
-            _n('%d checkpoint deleted.', '%d checkpoints deleted.', $deleted_count, 'change-checkpoints'),
-            $deleted_count
-          ),
-          'success'
-        );
-      } else {
-        $this->add_admin_notice(__('Failed to delete checkpoints.', 'change-checkpoints'), 'error');
-      }
-    } elseif ($action === 'delete_all' || $action2 === 'delete_all') {
-      $result = ccp()->checkpoint_manager->delete_all_checkpoints();
-
-      if ($result) {
-        $this->add_admin_notice(__('All checkpoints deleted.', 'change-checkpoints'), 'success');
-      } else {
-        $this->add_admin_notice(__('Failed to delete all checkpoints.', 'change-checkpoints'), 'error');
-      }
-    }
-
-    wp_redirect(admin_url('admin.php?page=change-checkpoints'));
-    exit;
-  }
-
-  /**
-   * AJAX: Create checkpoint
-   */
-  public function ajax_create_checkpoint()
+  public function ajax_clear_all()
   {
     check_ajax_referer('ccp_admin_nonce', 'nonce');
 
@@ -346,140 +255,16 @@ class CCP_Admin
       wp_die(-1);
     }
 
-    $title = isset($_POST['title']) ? sanitize_text_field($_POST['title']) : '';
-    $note = isset($_POST['note']) ? wp_kses_post($_POST['note']) : '';
-
-    $checkpoint_id = ccp()->checkpoint_manager->create_checkpoint($title, $note);
-
-    if ($checkpoint_id) {
-      wp_send_json_success(array(
-        'message' => __('Checkpoint created and set as active.', 'change-checkpoints'),
-        'checkpoint_id' => $checkpoint_id
-      ));
-    } else {
-      wp_send_json_error(array(
-        'message' => __('Failed to create checkpoint.', 'change-checkpoints')
-      ));
-    }
-  }
-
-  /**
-   * AJAX: Close checkpoint
-   */
-  public function ajax_close_checkpoint()
-  {
-    check_ajax_referer('ccp_admin_nonce', 'nonce');
-
-    if (!current_user_can('manage_options')) {
-      wp_die(-1);
-    }
-
-    $checkpoint_id = isset($_POST['checkpoint_id']) ? intval($_POST['checkpoint_id']) : 0;
-
-    if (!$checkpoint_id) {
-      wp_send_json_error(array(
-        'message' => __('Invalid checkpoint ID.', 'change-checkpoints')
-      ));
-    }
-
-    $result = ccp()->checkpoint_manager->close_checkpoint($checkpoint_id);
+    $result = ccp()->database->delete_all_events();
 
     if ($result) {
       wp_send_json_success(array(
-        'message' => __('Checkpoint closed. Changes will no longer be recorded until a new checkpoint is created.', 'change-checkpoints')
+        'message' => __('All changes have been cleared.', 'change-checkpoints')
       ));
     } else {
       wp_send_json_error(array(
-        'message' => __('Failed to close checkpoint.', 'change-checkpoints')
+        'message' => __('Failed to clear changes.', 'change-checkpoints')
       ));
-    }
-  }
-
-  /**
-   * AJAX: Delete checkpoint
-   */
-  public function ajax_delete_checkpoint()
-  {
-    check_ajax_referer('ccp_admin_nonce', 'nonce');
-
-    if (!current_user_can('manage_options')) {
-      wp_die(-1);
-    }
-
-    $checkpoint_id = isset($_POST['checkpoint_id']) ? intval($_POST['checkpoint_id']) : 0;
-
-    if (!$checkpoint_id) {
-      wp_send_json_error(array(
-        'message' => __('Invalid checkpoint ID.', 'change-checkpoints')
-      ));
-    }
-
-    $result = ccp()->checkpoint_manager->delete_checkpoint($checkpoint_id);
-
-    if ($result) {
-      wp_send_json_success(array(
-        'message' => __('Checkpoint deleted.', 'change-checkpoints')
-      ));
-    } else {
-      wp_send_json_error(array(
-        'message' => __('Failed to delete checkpoint.', 'change-checkpoints')
-      ));
-    }
-  }
-
-  /**
-   * AJAX: Bulk delete checkpoints
-   */
-  public function ajax_bulk_delete()
-  {
-    check_ajax_referer('ccp_admin_nonce', 'nonce');
-
-    if (!current_user_can('manage_options')) {
-      wp_die(-1);
-    }
-
-    $action = isset($_POST['bulk_action']) ? sanitize_text_field($_POST['bulk_action']) : '';
-
-    if ($action === 'delete_all') {
-      $result = ccp()->checkpoint_manager->delete_all_checkpoints();
-
-      if ($result) {
-        wp_send_json_success(array(
-          'message' => __('All checkpoints deleted.', 'change-checkpoints')
-        ));
-      } else {
-        wp_send_json_error(array(
-          'message' => __('Failed to delete all checkpoints.', 'change-checkpoints')
-        ));
-      }
-    } else {
-      $checkpoint_ids = isset($_POST['checkpoint_ids']) ? array_map('intval', $_POST['checkpoint_ids']) : array();
-
-      if (empty($checkpoint_ids)) {
-        wp_send_json_error(array(
-          'message' => __('No checkpoints selected.', 'change-checkpoints')
-        ));
-      }
-
-      $deleted_count = 0;
-      foreach ($checkpoint_ids as $checkpoint_id) {
-        if (ccp()->checkpoint_manager->delete_checkpoint($checkpoint_id)) {
-          $deleted_count++;
-        }
-      }
-
-      if ($deleted_count > 0) {
-        wp_send_json_success(array(
-          'message' => sprintf(
-            _n('%d checkpoint deleted.', '%d checkpoints deleted.', $deleted_count, 'change-checkpoints'),
-            $deleted_count
-          )
-        ));
-      } else {
-        wp_send_json_error(array(
-          'message' => __('Failed to delete checkpoints.', 'change-checkpoints')
-        ));
-      }
     }
   }
 

@@ -1,37 +1,44 @@
-# Change Checkpoints Plugin - AI Development Guide
+# WordPress Change Tracker Plugin - AI Development Guide
 
 ## Architecture Overview
 
-This WordPress plugin implements a **single-active-checkpoint** pattern for tracking content changes. Only one checkpoint can be active at a time, and all content modifications (posts, pages, CPTs, taxonomies) are automatically recorded when a checkpoint is active.
+This WordPress plugin implements **automatic continuous tracking** of content changes. All content modifications (posts, pages, CPTs, taxonomies) are automatically recorded as soon as the plugin is activated, without requiring manual checkpoints.
 
 ### Core Components
 
-- **Main Plugin** (`wordpressongoing-change-checkpoints.php`): Singleton pattern initialization
-- **Database Layer** (`includes/class-ccp-database.php`): Custom tables with foreign key constraints
-- **Checkpoint Manager** (`includes/class-ccp-checkpoint-manager.php`): Business logic for checkpoint lifecycle
-- **Event Tracker** (`includes/class-ccp-event-tracker.php`): WordPress hooks integration for change detection
-- **Admin Interface** (`admin/class-ccp-admin.php`): WordPress admin integration with AJAX
+- **Main Plugin** (`wordpressongoing-change-checkpoints.php`): Singleton pattern initialization with automatic tracking
+- **Database Layer** (`includes/class-ccp-database.php`): Single events table with simplified schema
+- **Event Tracker** (`includes/class-ccp-event-tracker.php`): WordPress hooks integration for automatic change detection
+- **Admin Interface** (`admin/class-ccp-admin.php`): Event display and management interface
+
+**Note**: The checkpoint manager component has been completely removed in v2.0.0 as part of the architectural simplification.
 
 ### Database Schema
 
 ```sql
-wp_ccp_checkpoints: id, title, note, status(open/closed), created_at, closed_at
-wp_ccp_events: checkpoint_id, object_kind(post/term), object_subtype, object_id, action(create/update/delete), details_json
+wp_ccp_events: id, object_kind(post/term), object_subtype, object_id, action(create/update/delete), details_json, created_at
 ```
 
-Events are CASCADE deleted when checkpoints are removed.
+Simplified single-table structure with automatic event recording.
 
 ## Development Patterns
 
 ### Plugin Initialization
 
-Uses lazy loading pattern - components get database instances via `ccp()->database` after main initialization. Event tracking hooks are only registered when an active checkpoint exists:
+Uses lazy loading pattern - components get database instances via `ccp()->database` after main initialization. Event tracking hooks are automatically registered on plugin activation:
 
 ```php
-if ($this->checkpoint_manager->has_active_checkpoint()) {
-    $this->event_tracker->init_hooks();
-}
+// Event tracking is always active - no checkpoint verification needed
+$this->event_tracker->init_hooks();
 ```
+
+### Content Grouping
+
+All tracked content is grouped under a single "WordPress" category, regardless of post type or taxonomy. This simplifies the interface and provides a unified view of all site changes.
+
+### Clear All Functionality
+
+The admin interface includes a "Clear All" button that allows administrators to remove all tracked events at once. This provides easy maintenance and cleanup capabilities.
 
 ### Event Tracking Exclusions
 
@@ -77,17 +84,18 @@ Use the database layer methods (`CCP_Database`) rather than direct WordPress que
 
 ## Testing Considerations
 
-- **Active checkpoint state**: Many features only work when checkpoint is active
+- **Automatic tracking**: All events are recorded immediately upon content changes
 - **User capabilities**: All operations require `manage_options`
 - **Content exclusions**: Test with revisions, autosaves, and non-public content types
 - **AJAX fallbacks**: Ensure forms work without JavaScript
+- **Clear All functionality**: Test bulk deletion operations with large datasets
 
 ## Translation Workflow
 
 Strings use descriptive context and sprintf patterns for pluralization:
 
 ```php
-sprintf(_n('%d checkpoint deleted.', '%d checkpoints deleted.', $count, 'change-checkpoints'), $count)
+sprintf(_n('%d event deleted.', '%d events deleted.', $count, 'change-checkpoints'), $count)
 ```
 
 Generate POT file: `wp i18n make-pot . languages/change-checkpoints.pot`
@@ -98,3 +106,36 @@ Generate POT file: `wp i18n make-pot . languages/change-checkpoints.pot`
 - Database interactions use prepared statements via WordPress methods  
 - Nonce verification on all state-changing operations
 - Capability checks at multiple levels (admin handlers, AJAX, database operations)
+
+## Version 2.0.0 Changes
+
+### Major Architectural Updates
+
+1. **Checkpoint System Elimination**: Removed the entire checkpoint manager system. Events are now automatically tracked without requiring manual checkpoint creation.
+
+2. **Database Simplification**:
+   - Removed `wp_ccp_checkpoints` table
+   - Simplified `wp_ccp_events` table structure
+   - Added `id` and `created_at` columns to events table
+   - Removed `checkpoint_id` foreign key dependency
+
+3. **Content Grouping Simplification**: All content types (posts, pages, CPTs, taxonomies) are now grouped under "WordPress" category instead of separate type-based groupings.
+
+4. **Clear All Functionality**: Added bulk deletion capability to remove all tracked events at once.
+
+5. **Translation Updates**: Updated all language files to reflect new plugin name "WordPress Change Tracker" and new interface terminology.
+
+### Migration Notes
+
+- Database schema is automatically updated via version-based migrations
+- Existing event data is preserved during the upgrade
+- Old checkpoint data is safely removed during migration
+- Plugin maintains backward compatibility for data display
+
+### New Admin Interface
+
+- **Events Overview**: Displays all tracked events in a unified table
+- **WordPress Grouping**: All events appear under "WordPress" category
+- **Clear All Button**: Prominent button for bulk event deletion
+- **Simplified Navigation**: Removed checkpoint-related navigation elements
+- **Automatic Tracking Indicator**: Interface shows that tracking is always active

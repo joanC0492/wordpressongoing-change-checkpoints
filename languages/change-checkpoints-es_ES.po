@@ -1,12 +1,12 @@
-# Change Checkpoints - Spanish Translation
+# WordPress Change Tracker - Spanish Translation
 # Copyright (C) 2024 Joan Cochachi
 # This file is distributed under the GPL v2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Change Checkpoints 1.0.0\n"
+"Project-Id-Version: WordPress Change Tracker 2.0.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/change-checkpoints\n"
-"POT-Creation-Date: 2024-01-01 12:00+0000\n"
-"PO-Revision-Date: 2024-01-01 12:00+0000\n"
+"POT-Creation-Date: 2024-11-04 12:00+0000\n"
+"PO-Revision-Date: 2024-11-04 12:00+0000\n"
 "Last-Translator: Joan Cochachi <joan@example.com>\n"
 "Language-Team: Spanish\n"
 "Language: es_ES\n"
@@ -18,352 +18,141 @@ msgstr ""
 
 #: admin/class-ccp-admin.php:44
 #: admin/class-ccp-admin.php:45
-msgid "Change Checkpoints"
-msgstr "Puntos de control"
+msgid "Change Tracker"
+msgstr "Rastreador de Cambios"
 
 #: admin/class-ccp-admin.php:56
 #: admin/class-ccp-admin.php:57
-msgid "Overview"
-msgstr "Resumen"
+msgid "Changes"
+msgstr "Cambios"
 
-#: admin/class-ccp-admin.php:66
-#: admin/class-ccp-admin.php:67
-msgid "View Checkpoint"
-msgstr "Ver punto de control"
+#: admin/class-ccp-admin.php:86
+msgid "This will permanently delete all recorded changes. This action cannot be undone. Continue?"
+msgstr "Esto eliminará permanentemente todos los cambios registrados. Esta acción no se puede deshacer. ¿Continuar?"
 
-#: admin/class-ccp-admin.php:169
-msgid "Invalid checkpoint ID."
-msgstr "ID de punto de control inválido."
+#: admin/class-ccp-admin.php:87
+msgid "Clearing..."
+msgstr "Limpiando..."
 
-#: admin/class-ccp-admin.php:176
-msgid "Checkpoint not found."
-msgstr "Punto de control no encontrado."
+#: admin/class-ccp-admin.php:88
+msgid "An error occurred. Please try again."
+msgstr "Ocurrió un error. Por favor, inténtalo de nuevo."
 
-#: admin/class-ccp-admin.php:187
-msgid "Checkpoint created and set as active."
-msgstr "Punto de control creado y establecido como activo."
+#: admin/class-ccp-admin.php:89
+msgid "Operation completed successfully."
+msgstr "Operación completada exitosamente."
 
-#: admin/class-ccp-admin.php:189
-msgid "Failed to create checkpoint."
-msgstr "Error al crear el punto de control."
+#: admin/class-ccp-admin.php:195
+msgid "All changes have been cleared."
+msgstr "Todos los cambios han sido eliminados."
 
-#: admin/class-ccp-admin.php:208
-msgid "Checkpoint closed. Changes will no longer be recorded until a new checkpoint is created."
-msgstr "Punto de control cerrado. Ya no se registrarán cambios hasta crear uno nuevo."
+#: admin/class-ccp-admin.php:197
+msgid "Failed to clear changes."
+msgstr "Error al limpiar los cambios."
 
-#: admin/class-ccp-admin.php:210
-msgid "Failed to close checkpoint."
-msgstr "Error al cerrar el punto de control."
+#: admin/class-ccp-admin.php:215
+msgid "All changes have been cleared."
+msgstr "Todos los cambios han sido eliminados."
 
-#: admin/class-ccp-admin.php:231
-msgid "Checkpoint deleted."
-msgstr "Punto de control eliminado."
+#: admin/class-ccp-admin.php:218
+msgid "Failed to clear changes."
+msgstr "Error al limpiar los cambios."
 
-#: admin/class-ccp-admin.php:233
-msgid "Failed to delete checkpoint."
-msgstr "Error al eliminar el punto de control."
+#: admin/views/overview.php:13
+msgid "Clear All"
+msgstr "Limpiar Todo"
 
-#: admin/class-ccp-admin.php:250
-msgid "No checkpoints selected."
-msgstr "No se seleccionaron puntos de control."
+#: admin/views/overview.php:17
+msgid "WordPress"
+msgstr "WordPress"
 
-#: admin/class-ccp-admin.php:263
-#, php-format
-msgid "%d checkpoint deleted."
-msgid_plural "%d checkpoints deleted."
-msgstr[0] "%d punto de control eliminado."
-msgstr[1] "%d puntos de control eliminados."
+#: admin/views/overview.php:24
+msgid "Search changes:"
+msgstr "Buscar cambios:"
 
-#: admin/class-ccp-admin.php:269
-msgid "Failed to delete checkpoints."
-msgstr "Error al eliminar los puntos de control."
+#: admin/views/overview.php:25
+msgid "Search by content name or date..."
+msgstr "Buscar por nombre de contenido o fecha..."
 
-#: admin/class-ccp-admin.php:275
-msgid "All checkpoints deleted."
-msgstr "Todos los puntos de control eliminados."
-
-#: admin/class-ccp-admin.php:277
-msgid "Failed to delete all checkpoints."
-msgstr "Error al eliminar todos los puntos de control."
-
-#: admin/views/overview.php:22
-#: admin/views/view-checkpoint.php:17
-#: includes/class-ccp-database.php:122
-msgid "Checkpoint %s"
-msgstr "Hito %s"
-
-#: admin/views/overview.php:23
-msgid "Active"
-msgstr "Activo"
-
-#: admin/views/overview.php:28
-msgid "Created: %s"
-msgstr "Creado: %s"
-
-#: admin/views/overview.php:38
-msgid "Close Checkpoint"
-msgstr "Cerrar punto de control"
-
-#: admin/views/overview.php:41
-msgid "Create New Checkpoint"
-msgstr "Crear nuevo punto de control"
-
-#: admin/views/overview.php:51
-msgid "No active checkpoint"
-msgstr "No hay punto de control activo"
-
-#: admin/views/overview.php:52
-msgid "No active checkpoint. Create one to start tracking changes."
-msgstr "No hay un punto de control activo. Crea uno para comenzar a registrar cambios."
-
-#: admin/views/overview.php:54
-msgid "Create Checkpoint"
-msgstr "Crear punto de control"
-
-#: admin/views/overview.php:62
-msgid "Checkpoints History"
-msgstr "Historial de puntos de control"
-
-#: admin/views/overview.php:69
-msgid "Search checkpoints:"
-msgstr "Buscar puntos de control:"
-
-#: admin/views/overview.php:70
-msgid "Search by date/time..."
-msgstr "Buscar por fecha/hora..."
-
-#: admin/views/overview.php:71
+#: admin/views/overview.php:26
 msgid "Search"
 msgstr "Buscar"
 
-#: admin/views/overview.php:78
-msgid "Select bulk action"
-msgstr "Seleccionar acción masiva"
+#: admin/views/overview.php:37
+msgid "No changes found"
+msgstr "No se encontraron cambios"
 
-#: admin/views/overview.php:80
-msgid "Bulk actions"
-msgstr "Acciones masivas"
+#: admin/views/overview.php:38
+msgid "No changes found matching your search."
+msgstr "No se encontraron cambios que coincidan con tu búsqueda."
 
-#: admin/views/overview.php:81
-msgid "Delete selected"
-msgstr "Eliminar seleccionados"
+#: admin/views/overview.php:40
+msgid "No changes recorded yet"
+msgstr "Aún no se han registrado cambios"
 
-#: admin/views/overview.php:82
-msgid "Delete all"
-msgstr "Eliminar todos"
+#: admin/views/overview.php:41
+msgid "Start making changes to your WordPress content to see them tracked here."
+msgstr "Comienza a hacer cambios en tu contenido de WordPress para verlos rastreados aquí."
 
-#: admin/views/overview.php:84
-msgid "Apply"
-msgstr "Aplicar"
+#: admin/views/overview.php:50
+#, php-format
+msgid "%d change"
+msgid_plural "%d changes"
+msgstr[0] "%d cambio"
+msgstr[1] "%d cambios"
 
-#: admin/views/overview.php:104
-msgid "Select All"
-msgstr "Seleccionar todo"
+#: admin/views/overview.php:66
+msgid "Time"
+msgstr "Hora"
 
-#: admin/views/overview.php:107
-msgid "Name"
-msgstr "Nombre"
+#: admin/views/overview.php:67
+msgid "Type"
+msgstr "Tipo"
 
-#: admin/views/overview.php:108
-msgid "Status"
-msgstr "Estado"
+#: admin/views/overview.php:68
+msgid "Action"
+msgstr "Acción"
 
-#: admin/views/overview.php:109
-msgid "Created At"
-msgstr "Creado"
+#: admin/views/overview.php:69
+msgid "Content"
+msgstr "Contenido"
 
-#: admin/views/overview.php:110
-msgid "Closed At"
-msgstr "Cerrado"
+#: admin/views/overview.php:70
+msgid "Author"
+msgstr "Autor"
 
-#: admin/views/overview.php:111
-msgid "Changes"
-msgstr "Cambios"
-
-#: admin/views/overview.php:112
-msgid "Actions"
-msgstr "Acciones"
-
-#: admin/views/overview.php:118
-msgid "No checkpoints found matching your search."
-msgstr "No se encontraron puntos de control que coincidan con tu búsqueda."
-
-#: admin/views/overview.php:120
-msgid "No checkpoints found."
-msgstr "No se encontraron puntos de control."
-
-#: admin/views/overview.php:144
-msgid "Open"
-msgstr "Abierto"
-
-#: admin/views/overview.php:144
-msgid "Closed"
-msgstr "Cerrado"
-
-#: admin/views/overview.php:159
-msgid "View"
-msgstr "Ver"
-
-#: admin/views/overview.php:162
-msgid "Close"
-msgstr "Cerrar"
-
-#: admin/views/overview.php:165
-msgid "Delete"
-msgstr "Eliminar"
-
-#: admin/views/view-checkpoint.php:20
-msgid "Back to All Checkpoints"
-msgstr "Volver a todos los puntos de control"
-
-#: admin/views/view-checkpoint.php:29
-msgid "Open"
-msgstr "Abierto"
-
-#: admin/views/view-checkpoint.php:29
-msgid "Closed"
-msgstr "Cerrado"
-
-#: admin/views/view-checkpoint.php:37
-msgid "Created: %s → Closed: %s"
-msgstr "Creado: %s → Cerrado: %s"
-
-#: admin/views/view-checkpoint.php:43
-msgid "Created: %s → Now"
-msgstr "Creado: %s → Ahora"
-
-#: admin/views/view-checkpoint.php:51
-msgid "Note"
-msgstr "Nota"
-
-#: admin/views/view-checkpoint.php:57
-msgid "Close Checkpoint"
-msgstr "Cerrar punto de control"
-
-#: admin/views/view-checkpoint.php:61
-msgid "Delete"
-msgstr "Eliminar"
-
-#: admin/views/view-checkpoint.php:67
-msgid "Changes"
-msgstr "Cambios"
-
-#: admin/views/view-checkpoint.php:73
-msgid "No changes recorded"
-msgstr "No se encontraron cambios registrados"
-
-#: admin/views/view-checkpoint.php:74
-msgid "No changes were recorded during this checkpoint period."
-msgstr "No se registraron cambios durante este período del punto de control."
-
-#: admin/views/view-checkpoint.php:89
-msgid "by %s"
-msgstr "por %s"
-
-#: admin/views/overview.php:204
-msgid "Create New Checkpoint"
-msgstr "Crear nuevo punto de control"
-
-#: admin/views/overview.php:209
-msgid "Name (Optional)"
-msgstr "Nombre (Opcional)"
-
-#: admin/views/overview.php:212
-msgid "Checkpoint {YYYY-MM-DD HH:mm}"
-msgstr "Hito {YYYY-MM-DD HH:mm}"
-
-#: admin/views/overview.php:214
-msgid "If left empty, the name will default to \"Checkpoint {YYYY-MM-DD HH:mm}\"."
-msgstr "Si se deja vacío, el nombre por defecto será \"Hito {YYYY-MM-DD HH:mm}\"."
-
-#: admin/views/overview.php:219
-msgid "Note (Optional)"
-msgstr "Nota (Opcional)"
-
-#: admin/views/overview.php:222
-msgid "Adding new image gallery"
-msgstr "Agregando nueva galería de imágenes"
-
-#: admin/views/overview.php:227
-msgid "Cancel"
-msgstr "Cancelar"
-
-#: admin/views/overview.php:230
-msgid "Create"
-msgstr "Crear"
-
-#: includes/class-ccp-checkpoint-manager.php:221
-msgid "Pages"
-msgstr "Páginas"
-
-#: includes/class-ccp-checkpoint-manager.php:223
-msgid "Posts"
-msgstr "Entradas"
-
-#: includes/class-ccp-checkpoint-manager.php:225
-msgid "Categories"
-msgstr "Categorías"
-
-#: includes/class-ccp-checkpoint-manager.php:227
-msgid "Tags"
-msgstr "Etiquetas"
-
-#: includes/class-ccp-checkpoint-manager.php:250
-msgid "Unknown"
-msgstr "Desconocido"
-
-#: includes/class-ccp-checkpoint-manager.php:281
+#: admin/class-ccp-admin.php:155
 msgid "create"
 msgstr "crear"
 
-#: includes/class-ccp-checkpoint-manager.php:283
+#: admin/class-ccp-admin.php:158
 msgid "update"
 msgstr "actualizar"
 
-#: includes/class-ccp-checkpoint-manager.php:285
+#: admin/class-ccp-admin.php:161
 msgid "delete"
 msgstr "eliminar"
 
-#: includes/class-ccp-checkpoint-manager.php:296
-msgid "Page"
-msgstr "Página"
+#: admin/class-ccp-admin.php:173
+msgid "Unknown"
+msgstr "Desconocido"
 
-#: includes/class-ccp-checkpoint-manager.php:298
-msgid "Post"
-msgstr "Entrada"
+#: admin/class-ccp-admin.php:176
+msgid "System"
+msgstr "Sistema"
 
-#: includes/class-ccp-checkpoint-manager.php:306
-msgid "Category"
-msgstr "Categoría"
-
-#: includes/class-ccp-checkpoint-manager.php:308
-msgid "Tag"
-msgstr "Etiqueta"
-
-#: includes/class-ccp-checkpoint-manager.php:331
+#: admin/views/overview.php:91
 msgid "status: %s → %s"
 msgstr "estado: %s → %s"
 
-#: includes/class-ccp-checkpoint-manager.php:337
-msgid "title updated"
-msgstr "título actualizado"
+#: admin/views/overview.php:93
+msgid "thumbnail changed"
+msgstr "miniatura cambiada"
 
-#: includes/class-ccp-checkpoint-manager.php:342
+#: admin/views/overview.php:95
 msgid "template changed"
 msgstr "plantilla cambiada"
 
-#: includes/class-ccp-checkpoint-manager.php:347
+#: admin/views/overview.php:97
 msgid "parent changed"
-msgstr "parent cambiado"
-
-#: includes/class-ccp-checkpoint-manager.php:352
-msgid "featured image changed"
-msgstr "imagen destacada cambiada"
-
-#: includes/class-ccp-checkpoint-manager.php:357
-msgid "name changed"
-msgstr "nombre cambiado"
-
-#: includes/class-ccp-checkpoint-manager.php:362
-msgid "slug changed"
-msgstr "slug cambiado"
+msgstr "padre cambiado"

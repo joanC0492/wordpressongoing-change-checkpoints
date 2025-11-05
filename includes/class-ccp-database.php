@@ -19,7 +19,7 @@ class CCP_Database
   /**
    * Database version
    */
-  const DB_VERSION = '1.0.0';
+  const DB_VERSION = '2.0.0';
 
   /**
    * Option name for database version
@@ -57,25 +57,10 @@ class CCP_Database
 
     $charset_collate = $wpdb->get_charset_collate();
 
-    // Create checkpoints table
-    $checkpoints_table = $wpdb->prefix . 'ccp_checkpoints';
-    $checkpoints_sql = "CREATE TABLE $checkpoints_table (
-            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            title varchar(191) DEFAULT NULL,
-            note longtext DEFAULT NULL,
-            status enum('open','closed') NOT NULL DEFAULT 'open',
-            created_at datetime NOT NULL,
-            closed_at datetime DEFAULT NULL,
-            PRIMARY KEY (id),
-            KEY status (status),
-            KEY created_at (created_at)
-        ) $charset_collate;";
-
-    // Create events table
+    // Create events table only - no checkpoints needed
     $events_table = $wpdb->prefix . 'ccp_events';
     $events_sql = "CREATE TABLE $events_table (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            checkpoint_id bigint(20) unsigned NOT NULL,
             object_kind enum('post','term') NOT NULL,
             object_subtype varchar(64) NOT NULL,
             object_id bigint(20) DEFAULT NULL,
@@ -85,19 +70,21 @@ class CCP_Database
             author_id bigint(20) DEFAULT NULL,
             timestamp datetime NOT NULL,
             PRIMARY KEY (id),
-            KEY checkpoint_id (checkpoint_id),
             KEY object_kind_subtype (object_kind, object_subtype),
             KEY timestamp (timestamp),
-            FOREIGN KEY (checkpoint_id) REFERENCES $checkpoints_table(id) ON DELETE CASCADE
+            KEY author_id (author_id)
         ) $charset_collate;";
 
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-    dbDelta($checkpoints_sql);
     dbDelta($events_sql);
+
+    // Drop old checkpoints table if it exists
+    $checkpoints_table = $wpdb->prefix . 'ccp_checkpoints';
+    $wpdb->query("DROP TABLE IF EXISTS $checkpoints_table");
   }
 
   /**
-   * Get checkpoints table name
+   * Get checkpoints table name (deprecated - will be removed)
    */
   public function get_checkpoints_table()
   {
@@ -115,103 +102,45 @@ class CCP_Database
   }
 
   /**
-   * Create a new checkpoint
+   * Add an event
    */
-  public function create_checkpoint($title = null, $note = null)
+  public function add_event($object_kind, $object_subtype, $object_id, $object_name, $action, $details = null, $author_id = null)
   {
     global $wpdb;
-
-    $current_time = current_time('mysql', true);
-
-    // Generate default title if not provided
-    if (empty($title)) {
-      $local_time = wp_date('Y-m-d H:i', strtotime($current_time));
-      $title = sprintf(__('Checkpoint %s', 'change-checkpoints'), $local_time);
-    }
 
     $result = $wpdb->insert(
-      $this->get_checkpoints_table(),
+      $this->get_events_table(),
       array(
-        'title' => sanitize_text_field($title),
-        'note' => wp_kses_post($note),
-        'status' => 'open',
-        'created_at' => $current_time
+        'object_kind' => $object_kind,
+        'object_subtype' => $object_subtype,
+        'object_id' => $object_id,
+        'object_name' => sanitize_text_field($object_name),
+        'action' => $action,
+        'details_json' => is_array($details) ? wp_json_encode($details) : $details,
+        'author_id' => $author_id ?: get_current_user_id(),
+        'timestamp' => current_time('mysql', true)
       ),
-      array('%s', '%s', '%s', '%s')
+      array('%s', '%s', '%d', '%s', '%s', '%s', '%d', '%s')
     );
 
-    if ($result === false) {
-      return false;
-    }
-
-    return $wpdb->insert_id;
+    return $result !== false ? $wpdb->insert_id : false;
   }
 
   /**
-   * Close a checkpoint
+   * Get all events with pagination
    */
-  public function close_checkpoint($checkpoint_id)
-  {
-    global $wpdb;
-
-    $result = $wpdb->update(
-      $this->get_checkpoints_table(),
-      array(
-        'status' => 'closed',
-        'closed_at' => current_time('mysql', true)
-      ),
-      array('id' => $checkpoint_id),
-      array('%s', '%s'),
-      array('%d')
-    );
-
-    return $result !== false;
-  }
-
-  /**
-   * Get active checkpoint
-   */
-  public function get_active_checkpoint()
-  {
-    global $wpdb;
-
-    $checkpoint = $wpdb->get_row($wpdb->prepare(
-      "SELECT * FROM {$this->get_checkpoints_table()} WHERE status = %s ORDER BY created_at DESC LIMIT 1",
-      'open'
-    ));
-
-    return $checkpoint;
-  }
-
-  /**
-   * Get checkpoint by ID
-   */
-  public function get_checkpoint($checkpoint_id)
-  {
-    global $wpdb;
-
-    $checkpoint = $wpdb->get_row($wpdb->prepare(
-      "SELECT * FROM {$this->get_checkpoints_table()} WHERE id = %d",
-      $checkpoint_id
-    ));
-
-    return $checkpoint;
-  }
-
-  /**
-   * Get all checkpoints with pagination
-   */
-  public function get_checkpoints($args = array())
+  public function get_events($args = array())
   {
     global $wpdb;
 
     $defaults = array(
-      'per_page' => 20,
+      'per_page' => 50,
       'page' => 1,
-      'orderby' => 'created_at',
+      'orderby' => 'timestamp',
       'order' => 'DESC',
       'search' => '',
-      'status' => ''
+      'object_kind' => '',
+      'object_subtype' => ''
     );
 
     $args = wp_parse_args($args, $defaults);
@@ -221,17 +150,23 @@ class CCP_Database
 
     // Search functionality
     if (!empty($args['search'])) {
-      $where_clauses[] = "(title LIKE %s OR note LIKE %s OR DATE_FORMAT(created_at, '%Y-%m-%d') LIKE %s)";
+      $where_clauses[] = "(object_name LIKE %s OR object_subtype LIKE %s OR DATE_FORMAT(timestamp, '%Y-%m-%d') LIKE %s)";
       $search_term = '%' . $wpdb->esc_like($args['search']) . '%';
       $where_values[] = $search_term;
       $where_values[] = $search_term;
       $where_values[] = $search_term;
     }
 
-    // Status filter
-    if (!empty($args['status']) && in_array($args['status'], array('open', 'closed'))) {
-      $where_clauses[] = "status = %s";
-      $where_values[] = $args['status'];
+    // Object kind filter
+    if (!empty($args['object_kind']) && in_array($args['object_kind'], array('post', 'term'))) {
+      $where_clauses[] = "object_kind = %s";
+      $where_values[] = $args['object_kind'];
+    }
+
+    // Object subtype filter
+    if (!empty($args['object_subtype'])) {
+      $where_clauses[] = "object_subtype = %s";
+      $where_values[] = $args['object_subtype'];
     }
 
     $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
@@ -241,7 +176,7 @@ class CCP_Database
     $limit = intval($args['per_page']);
     $offset = (intval($args['page']) - 1) * $limit;
 
-    $sql = "SELECT * FROM {$this->get_checkpoints_table()} 
+    $sql = "SELECT * FROM {$this->get_events_table()} 
                 $where_sql 
                 ORDER BY $orderby 
                 LIMIT %d OFFSET %d";
@@ -250,18 +185,18 @@ class CCP_Database
     $where_values[] = $offset;
 
     if (!empty($where_values)) {
-      $checkpoints = $wpdb->get_results($wpdb->prepare($sql, $where_values));
+      $events = $wpdb->get_results($wpdb->prepare($sql, $where_values));
     } else {
-      $checkpoints = $wpdb->get_results($sql);
+      $events = $wpdb->get_results($sql);
     }
 
-    return $checkpoints;
+    return $events;
   }
 
   /**
-   * Get total checkpoints count
+   * Get total events count
    */
-  public function get_checkpoints_count($args = array())
+  public function get_events_count($args = array())
   {
     global $wpdb;
 
@@ -270,22 +205,28 @@ class CCP_Database
 
     // Search functionality
     if (!empty($args['search'])) {
-      $where_clauses[] = "(title LIKE %s OR note LIKE %s OR DATE_FORMAT(created_at, '%Y-%m-%d') LIKE %s)";
+      $where_clauses[] = "(object_name LIKE %s OR object_subtype LIKE %s OR DATE_FORMAT(timestamp, '%Y-%m-%d') LIKE %s)";
       $search_term = '%' . $wpdb->esc_like($args['search']) . '%';
       $where_values[] = $search_term;
       $where_values[] = $search_term;
       $where_values[] = $search_term;
     }
 
-    // Status filter
-    if (!empty($args['status']) && in_array($args['status'], array('open', 'closed'))) {
-      $where_clauses[] = "status = %s";
-      $where_values[] = $args['status'];
+    // Object kind filter
+    if (!empty($args['object_kind']) && in_array($args['object_kind'], array('post', 'term'))) {
+      $where_clauses[] = "object_kind = %s";
+      $where_values[] = $args['object_kind'];
+    }
+
+    // Object subtype filter
+    if (!empty($args['object_subtype'])) {
+      $where_clauses[] = "object_subtype = %s";
+      $where_values[] = $args['object_subtype'];
     }
 
     $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
 
-    $sql = "SELECT COUNT(*) FROM {$this->get_checkpoints_table()} $where_sql";
+    $sql = "SELECT COUNT(*) FROM {$this->get_events_table()} $where_sql";
 
     if (!empty($where_values)) {
       $count = $wpdb->get_var($wpdb->prepare($sql, $where_values));
@@ -297,106 +238,14 @@ class CCP_Database
   }
 
   /**
-   * Delete checkpoint and its events
+   * Delete all events
    */
-  public function delete_checkpoint($checkpoint_id)
+  public function delete_all_events()
   {
     global $wpdb;
 
-    // Delete events first (foreign key constraint will handle this automatically, but let's be explicit)
-    $wpdb->delete(
-      $this->get_events_table(),
-      array('checkpoint_id' => $checkpoint_id),
-      array('%d')
-    );
-
-    // Delete checkpoint
-    $result = $wpdb->delete(
-      $this->get_checkpoints_table(),
-      array('id' => $checkpoint_id),
-      array('%d')
-    );
+    $result = $wpdb->query("TRUNCATE TABLE {$this->get_events_table()}");
 
     return $result !== false;
-  }
-
-  /**
-   * Delete all checkpoints and events
-   */
-  public function delete_all_checkpoints()
-  {
-    global $wpdb;
-
-    $events_result = $wpdb->query("TRUNCATE TABLE {$this->get_events_table()}");
-    $checkpoints_result = $wpdb->query("TRUNCATE TABLE {$this->get_checkpoints_table()}");
-
-    return $events_result !== false && $checkpoints_result !== false;
-  }
-
-  /**
-   * Add an event to the current checkpoint
-   */
-  public function add_event($checkpoint_id, $object_kind, $object_subtype, $object_id, $object_name, $action, $details = null, $author_id = null)
-  {
-    global $wpdb;
-
-    $result = $wpdb->insert(
-      $this->get_events_table(),
-      array(
-        'checkpoint_id' => $checkpoint_id,
-        'object_kind' => $object_kind,
-        'object_subtype' => $object_subtype,
-        'object_id' => $object_id,
-        'object_name' => sanitize_text_field($object_name),
-        'action' => $action,
-        'details_json' => is_array($details) ? wp_json_encode($details) : $details,
-        'author_id' => $author_id ?: get_current_user_id(),
-        'timestamp' => current_time('mysql', true)
-      ),
-      array('%d', '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%s')
-    );
-
-    return $result !== false ? $wpdb->insert_id : false;
-  }
-
-  /**
-   * Get events for a checkpoint
-   */
-  public function get_checkpoint_events($checkpoint_id, $args = array())
-  {
-    global $wpdb;
-
-    $defaults = array(
-      'orderby' => 'timestamp',
-      'order' => 'DESC'
-    );
-
-    $args = wp_parse_args($args, $defaults);
-
-    $orderby = sanitize_sql_orderby($args['orderby'] . ' ' . $args['order']);
-
-    $events = $wpdb->get_results($wpdb->prepare(
-      "SELECT * FROM {$this->get_events_table()} 
-             WHERE checkpoint_id = %d 
-             ORDER BY $orderby",
-      $checkpoint_id
-    ));
-
-    return $events;
-  }
-
-  /**
-   * Get events count for a checkpoint
-   */
-  public function get_checkpoint_events_count($checkpoint_id)
-  {
-    global $wpdb;
-
-    $count = $wpdb->get_var($wpdb->prepare(
-      "SELECT COUNT(*) FROM {$this->get_events_table()} WHERE checkpoint_id = %d",
-      $checkpoint_id
-    ));
-
-    return intval($count);
   }
 }
