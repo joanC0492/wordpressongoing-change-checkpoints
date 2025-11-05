@@ -90,6 +90,10 @@ class CCP_Event_Tracker
     add_action('edit_attachment', array($this, 'track_media_edit'), 10, 1);
     add_action('delete_attachment', array($this, 'track_media_delete'), 10, 1);
     add_action('updated_postmeta', array($this, 'track_media_meta_update'), 10, 4);
+
+    // Theme tracking hooks
+    add_action('switch_theme', array($this, 'track_theme_switch'), 10, 3);
+    add_action('delete_theme', array($this, 'track_theme_delete'), 10, 1);
   }
 
   /**
@@ -371,7 +375,7 @@ class CCP_Event_Tracker
     if (!$media_type) {
       return;
     }
-    
+
     $details = array(
       'file_url' => $file_url,
       'file_name' => basename($file_path),
@@ -601,6 +605,55 @@ class CCP_Event_Tracker
     // without storing previous state
 
     return $details;
+  }
+
+  /**
+   * Track theme switch/activation
+   */
+  public function track_theme_switch($new_name, $new_theme, $old_theme)
+  {
+    // Verificar si debemos rastrear esta solicitud
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    // Get the new theme name
+    $theme_name = $new_theme ? $new_theme->get('Name') : $new_name;
+
+    // Track the event with minimal details
+    $this->track_event(
+      'theme',
+      'theme',
+      0, // No specific ID for themes
+      $theme_name,
+      'activate',
+      array() // No details to avoid confusion
+    );
+  }
+
+  /**
+   * Track theme deletion
+   */
+  public function track_theme_delete($stylesheet)
+  {
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    // Get theme info before deletion
+    $theme = wp_get_theme($stylesheet);
+    $theme_name = $theme->exists() ? $theme->get('Name') : $stylesheet;
+
+    // Track the event with minimal details
+    $this->track_event(
+      'theme',
+      'theme',
+      0, // No specific ID for themes
+      $theme_name,
+      'delete',
+      array() // No details to avoid confusion
+    );
   }
 
   /**

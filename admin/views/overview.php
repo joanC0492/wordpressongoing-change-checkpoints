@@ -120,7 +120,7 @@ if (!defined('ABSPATH')) {
                   <?php echo esc_html($event->details['file_url']); ?>
                 </small>
               <?php endif; ?>
-              <?php if (!empty($event->details)): ?>
+              <?php if (!empty($event->details) && empty($event->is_theme)): ?>
                 <br><small class="ccp-details">
                   <?php
                   $detail_parts = array();

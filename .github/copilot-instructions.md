@@ -16,7 +16,7 @@ This WordPress plugin implements **automatic continuous tracking** of content ch
 ### Database Schema
 
 ```sql
-wp_ccp_events: id, object_kind(post/term/media), object_subtype, object_id, action(create/update/delete), details_json, created_at
+wp_ccp_events: id, object_kind(varchar), object_subtype, object_id, action(varchar), details_json, created_at
 ```
 
 Simplified single-table structure with automatic event recording. The `object_kind` field distinguishes between:
@@ -24,6 +24,9 @@ Simplified single-table structure with automatic event recording. The `object_ki
 - `post` - WordPress posts, pages, and custom post types
 - `term` - Taxonomies (categories, tags, custom taxonomies)  
 - `media` - Media library files (images, videos, audio, documents)
+- `theme` - WordPress themes (activation and deletion)
+
+**Important**: Uses `VARCHAR(32)` instead of `ENUM` for better flexibility and easier migrations.
 
 ### Event Details JSON Structure
 
@@ -50,6 +53,14 @@ The `details_json` field stores event-specific metadata:
   "thumbnail_changed": true,
   "template_changed": true,
   "parent_changed": true
+}
+```
+
+**For Theme Events:**
+
+```json
+{
+  // Minimal data - no confusing details displayed in UI
 }
 ```
 
@@ -111,6 +122,21 @@ The interface automatically detects media events using either:
 $event->object_kind === 'media' || in_array($event->object_subtype, array('image', 'video', 'audio', 'application'))
 ```
 
+### Theme Tracking
+
+The plugin automatically tracks WordPress theme changes:
+
+- **Theme activation**: When switching from one theme to another
+- **Theme deletion**: When permanently removing themes from the system
+- **Clean interface**: No confusing details displayed - only theme name and action
+- **Simplified tracking**: Focuses on the essential information (what theme, what action)
+
+Theme events show with minimal information to avoid interface clutter:
+
+- **Type Column**: "Theme"  
+- **Action Column**: "activate" or "delete"
+- **Content Column**: Theme name only (no additional details)
+
 ### WordPress Admin Integration
 
 - **No jQuery dependency** - uses vanilla JavaScript with fetch API
@@ -169,6 +195,49 @@ Generate POT file: `wp i18n make-pot . languages/change-checkpoints.pot`
 - Nonce verification on all state-changing operations
 - Capability checks at multiple levels (admin handlers, AJAX, database operations)
 
+## Database Migration Best Practices
+
+### ENUM vs VARCHAR Considerations
+
+**Avoid ENUM for dynamic values:**
+
+- ENUMs are restrictive and hard to modify
+- `dbDelta()` cannot update existing ENUM values
+- Silent failures when inserting invalid ENUM values
+- Use VARCHAR for better flexibility and future-proofing
+
+**Successful Migration Pattern:**
+
+```php
+// Check version and force ALTER TABLE for ENUM to VARCHAR conversion
+if (version_compare($installed_version, '2.2.0', '<')) {
+    $wpdb->query("ALTER TABLE $events_table MODIFY COLUMN object_kind varchar(32) NOT NULL");
+    $wpdb->query("ALTER TABLE $events_table MODIFY COLUMN action varchar(32) NOT NULL");
+}
+```
+
+### Troubleshooting Database Issues
+
+**Force Database Update Method:**
+
+```php
+public function force_database_update() {
+    global $wpdb;
+    $events_table = $wpdb->prefix . 'ccp_events';
+    
+    // Convert ENUM to VARCHAR for better flexibility
+    $wpdb->query("ALTER TABLE $events_table MODIFY COLUMN object_kind varchar(32) NOT NULL");
+    $wpdb->query("ALTER TABLE $events_table MODIFY COLUMN action varchar(32) NOT NULL");
+    
+    update_option(self::DB_VERSION_OPTION, self::DB_VERSION);
+    return true;
+}
+```
+
+**Emergency Migration Script Pattern:**
+
+Create temporary PHP script for manual database updates when automatic migrations fail.
+
 ## Version 2.0.0 Changes
 
 ### Major Architectural Updates
@@ -202,7 +271,51 @@ Generate POT file: `wp i18n make-pot . languages/change-checkpoints.pot`
 - **Simplified Navigation**: Removed checkpoint-related navigation elements
 - **Automatic Tracking Indicator**: Interface shows that tracking is always active
 
-## Recent Enhancements (v2.1.0)
+## Recent Enhancements (v2.2.0)
+
+### Database Schema Fix (Critical)
+
+**Problem Fixed**: The database used `ENUM` fields for `object_kind` and `action`, which caused major issues:
+
+- ENUM only accepted predefined values like `('post','term')`
+- When inserting `'media'` or `'theme'`, MySQL silently stored empty strings
+- `dbDelta()` cannot modify existing ENUMs, making migrations nearly impossible
+- Very restrictive and hard to maintain
+
+**Solution**: Converted to `VARCHAR` for maximum flexibility:
+
+- Database version bumped to `2.2.0`
+- `object_kind` changed from ENUM to `varchar(32) NOT NULL`
+- `action` changed from ENUM to `varchar(32) NOT NULL`
+- Updated migration logic to use `ALTER TABLE` with VARCHAR conversion
+- All existing and future values now work correctly
+
+### Theme Tracking Implementation
+
+1. **WordPress Theme Events**: Complete tracking of theme lifecycle:
+   - Theme activation/switching via `switch_theme` hook
+   - Theme deletion via `delete_theme` hook
+   - Minimal data storage to avoid interface clutter
+
+2. **Clean Interface Design**: Theme events display with simplified information:
+   - Type shows as "Theme"
+   - Actions show as "activate" or "delete"
+   - Content shows only theme name (no confusing details)
+   - No additional metadata displayed in details section
+
+3. **Event Detection Logic**: Added `is_theme` flag for proper event classification:
+
+   ```php
+   if ($event->object_kind === 'theme') {
+       $formatted->is_theme = true;
+   }
+   ```
+
+4. **Interface Exclusions**: Theme events are excluded from detail display:
+
+   ```php
+   if (!empty($event->details) && empty($event->is_theme))
+   ```
 
 ### Enhanced Media Display
 
@@ -221,6 +334,26 @@ Generate POT file: `wp i18n make-pot . languages/change-checkpoints.pot`
 
 ### Implementation Details
 
+**Database Architecture**:
+
+```sql
+CREATE TABLE wp_ccp_events (
+    id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    object_kind varchar(32) NOT NULL,
+    object_subtype varchar(64) NOT NULL,
+    object_id bigint(20) DEFAULT NULL,
+    object_name varchar(255) DEFAULT NULL,
+    action varchar(32) NOT NULL,
+    details_json longtext DEFAULT NULL,
+    author_id bigint(20) DEFAULT NULL,
+    timestamp datetime NOT NULL,
+    PRIMARY KEY (id),
+    KEY object_kind_subtype (object_kind, object_subtype),
+    KEY timestamp (timestamp),
+    KEY author_id (author_id)
+);
+```
+
 **Media Type Detection Pattern:**
 
 ```php
@@ -228,6 +361,15 @@ Generate POT file: `wp i18n make-pot . languages/change-checkpoints.pot`
 if ($event->object_kind === 'media' || in_array($event->object_subtype, array('image', 'video', 'audio', 'application'))) {
     // Handle as media
     $formatted->is_media = true;
+}
+```
+
+**Theme Detection Pattern:**
+
+```php
+// Clean theme detection
+if ($event->object_kind === 'theme') {
+    $formatted->is_theme = true;
 }
 ```
 
@@ -243,4 +385,8 @@ if ($event->object_kind === 'media' || in_array($event->object_subtype, array('i
 <small class="ccp-details" style="display: block; padding-left: 0;">
     http://site.com/wp-content/uploads/2025/11/filename.jpg
 </small>
+
+<!-- Content Column (for themes) -->
+<strong>Twenty Twenty-Four</strong>
+<!-- No additional details for clean interface -->
 ```

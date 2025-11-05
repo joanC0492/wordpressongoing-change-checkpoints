@@ -19,7 +19,7 @@ class CCP_Database
   /**
    * Database version
    */
-  const DB_VERSION = '2.0.0';
+  const DB_VERSION = '2.2.0';
 
   /**
    * Option name for database version
@@ -56,16 +56,25 @@ class CCP_Database
     global $wpdb;
 
     $charset_collate = $wpdb->get_charset_collate();
-
-    // Create events table only - no checkpoints needed
     $events_table = $wpdb->prefix . 'ccp_events';
+
+    // Check if table exists and get current version
+    $installed_version = get_option(self::DB_VERSION_OPTION, '0');
+    
+    if (version_compare($installed_version, '2.2.0', '<')) {
+      // Convert ENUM to VARCHAR for better flexibility
+      $wpdb->query("ALTER TABLE $events_table MODIFY COLUMN object_kind varchar(32) NOT NULL");
+      $wpdb->query("ALTER TABLE $events_table MODIFY COLUMN action varchar(32) NOT NULL");
+    }
+
+    // Create/update events table
     $events_sql = "CREATE TABLE $events_table (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            object_kind enum('post','term') NOT NULL,
+            object_kind varchar(32) NOT NULL,
             object_subtype varchar(64) NOT NULL,
             object_id bigint(20) DEFAULT NULL,
             object_name varchar(255) DEFAULT NULL,
-            action enum('create','update','delete') NOT NULL,
+            action varchar(32) NOT NULL,
             details_json longtext DEFAULT NULL,
             author_id bigint(20) DEFAULT NULL,
             timestamp datetime NOT NULL,
@@ -158,7 +167,7 @@ class CCP_Database
     }
 
     // Object kind filter
-    if (!empty($args['object_kind']) && in_array($args['object_kind'], array('post', 'term'))) {
+    if (!empty($args['object_kind']) && in_array($args['object_kind'], array('post', 'term', 'media', 'theme'))) {
       $where_clauses[] = "object_kind = %s";
       $where_values[] = $args['object_kind'];
     }
@@ -213,7 +222,7 @@ class CCP_Database
     }
 
     // Object kind filter
-    if (!empty($args['object_kind']) && in_array($args['object_kind'], array('post', 'term'))) {
+    if (!empty($args['object_kind']) && in_array($args['object_kind'], array('post', 'term', 'media', 'theme'))) {
       $where_clauses[] = "object_kind = %s";
       $where_values[] = $args['object_kind'];
     }
@@ -235,6 +244,25 @@ class CCP_Database
     }
 
     return intval($count);
+  }
+
+  /**
+   * Force database update (for development/troubleshooting)
+   */
+  public function force_database_update()
+  {
+    global $wpdb;
+    
+    $events_table = $wpdb->prefix . 'ccp_events';
+    
+    // Convert ENUM to VARCHAR for better flexibility
+    $wpdb->query("ALTER TABLE $events_table MODIFY COLUMN object_kind varchar(32) NOT NULL");
+    $wpdb->query("ALTER TABLE $events_table MODIFY COLUMN action varchar(32) NOT NULL");
+    
+    // Update version option
+    update_option(self::DB_VERSION_OPTION, self::DB_VERSION);
+    
+    return true;
   }
 
   /**
