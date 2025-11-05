@@ -95,6 +95,11 @@ class CCP_Event_Tracker
     add_action('switch_theme', array($this, 'track_theme_switch'), 10, 3);
     add_action('delete_theme', array($this, 'track_theme_delete'), 10, 1);
 
+    // Plugin tracking hooks
+    add_action('activated_plugin', array($this, 'track_plugin_activate'), 10, 2);
+    add_action('deactivated_plugin', array($this, 'track_plugin_deactivate'), 10, 2);
+    add_action('deleted_plugin', array($this, 'track_plugin_delete'), 10, 2);
+
     // Navigation menu tracking
     add_action('wp_create_nav_menu', array($this, 'track_nav_menu_create'), 10, 2);
     add_action('wp_update_nav_menu', array($this, 'track_nav_menu_update'), 10, 1);
@@ -666,6 +671,120 @@ class CCP_Event_Tracker
       $theme_name,
       'delete',
       array() // No details to avoid confusion
+    );
+  }
+
+  /**
+   * Track plugin activation
+   */
+  public function track_plugin_activate($plugin, $network_wide)
+  {
+    // Debug: Log plugin activation
+    error_log('CCP Debug - Plugin activated: ' . $plugin);
+
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    // Get plugin data using WordPress function
+    if (!function_exists('get_plugin_data')) {
+      require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    }
+    
+    $plugin_path = ABSPATH . 'wp-content/plugins/' . $plugin;
+    $plugin_data = get_plugin_data($plugin_path);
+    $plugin_name = !empty($plugin_data['Name']) ? $plugin_data['Name'] : basename($plugin, '.php');
+
+    // Track the event
+    $this->track_event(
+      'plugin',
+      'plugin',
+      0, // No specific ID for plugins
+      $plugin_name,
+      'activate',
+      array(
+        'plugin_file' => $plugin,
+        'network_wide' => $network_wide,
+        'version' => !empty($plugin_data['Version']) ? $plugin_data['Version'] : ''
+      )
+    );
+  }
+
+  /**
+   * Track plugin deactivation
+   */
+  public function track_plugin_deactivate($plugin, $network_deactivating)
+  {
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    // Get plugin data using WordPress function
+    if (!function_exists('get_plugin_data')) {
+      require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    }
+    
+    $plugin_path = ABSPATH . 'wp-content/plugins/' . $plugin;
+    $plugin_data = get_plugin_data($plugin_path);
+    $plugin_name = !empty($plugin_data['Name']) ? $plugin_data['Name'] : basename($plugin, '.php');
+
+    // Track the event
+    $this->track_event(
+      'plugin',
+      'plugin',
+      0, // No specific ID for plugins
+      $plugin_name,
+      'deactivate',
+      array(
+        'plugin_file' => $plugin,
+        'network_deactivating' => $network_deactivating,
+        'version' => !empty($plugin_data['Version']) ? $plugin_data['Version'] : ''
+      )
+    );
+  }
+
+  /**
+   * Track plugin deletion
+   */
+  public function track_plugin_delete($plugin_file, $deleted)
+  {
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    // Only track successful deletions
+    if (!$deleted) {
+      return;
+    }
+
+    // Try to get plugin data - may not be available if already deleted
+    $plugin_data = array();
+    $plugin_path = ABSPATH . 'wp-content/plugins/' . $plugin_file;
+    
+    if (file_exists($plugin_path)) {
+      if (!function_exists('get_plugin_data')) {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+      }
+      $plugin_data = get_plugin_data($plugin_path);
+    }
+    
+    $plugin_name = !empty($plugin_data['Name']) ? $plugin_data['Name'] : basename($plugin_file, '.php');
+
+    // Track the event
+    $this->track_event(
+      'plugin',
+      'plugin',
+      0, // No specific ID for plugins
+      $plugin_name,
+      'delete',
+      array(
+        'plugin_file' => $plugin_file,
+        'deleted' => $deleted,
+        'version' => !empty($plugin_data['Version']) ? $plugin_data['Version'] : ''
+      )
     );
   }
 

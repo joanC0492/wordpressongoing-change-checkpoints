@@ -161,7 +161,7 @@ if (!defined('ABSPATH')) {
                   ?>
                 </small>
               <?php endif; ?>
-              <?php if (!empty($event->details) && empty($event->is_theme) && empty($event->is_menu)): ?>
+              <?php if (!empty($event->details) && empty($event->is_theme) && empty($event->is_plugin) && empty($event->is_menu)): ?>
                 <br><small class="ccp-details">
                   <?php
                   $detail_parts = array();
