@@ -115,11 +115,20 @@ if (!defined('ABSPATH')) {
             </td>
             <td class="column-content">
               <strong><?php echo esc_html($event->object_name); ?></strong>
+              <?php if (!empty($event->is_media) && $event->is_media && !empty($event->details['file_url'])): ?>
+                <small class="ccp-details" style="display: block; padding-left: 0;">
+                  <?php echo esc_html($event->details['file_url']); ?>
+                </small>
+              <?php endif; ?>
               <?php if (!empty($event->details)): ?>
                 <br><small class="ccp-details">
                   <?php
                   $detail_parts = array();
                   foreach ($event->details as $key => $value) {
+                    // Skip file_url as it's already displayed above
+                    if ($key === 'file_url') {
+                      continue;
+                    }
                     if ($key === 'status_from' && isset($event->details['status_to'])) {
                       $detail_parts[] = sprintf(__('status: %s → %s', 'change-checkpoints'), $value, $event->details['status_to']);
                     } elseif ($key === 'thumbnail_changed') {
@@ -130,7 +139,9 @@ if (!defined('ABSPATH')) {
                       $detail_parts[] = __('parent changed', 'change-checkpoints');
                     }
                   }
-                  echo esc_html(implode(', ', $detail_parts));
+                  if (!empty($detail_parts)) {
+                    echo esc_html(implode(', ', $detail_parts));
+                  }
                   ?>
                 </small>
               <?php endif; ?>

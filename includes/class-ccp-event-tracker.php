@@ -76,7 +76,7 @@ class CCP_Event_Tracker
     add_action('save_post', array($this, 'track_post_save'), 10, 3);
     add_action('transition_post_status', array($this, 'track_post_status_change'), 10, 3);
     add_action('before_delete_post', array($this, 'track_post_delete'), 10, 2);
-    
+
     // Meta tracking hooks for specific fields
     add_action('updated_postmeta', array($this, 'track_post_meta_update'), 10, 4);
 
@@ -363,6 +363,7 @@ class CCP_Event_Tracker
 
     // Get media type and file info
     $file_path = get_attached_file($attachment_id);
+    $file_url = wp_get_attachment_url($attachment_id);
     $file_type = wp_check_filetype($file_path);
     $media_type = $this->get_media_type_from_mime($file_type['type']);
 
@@ -370,8 +371,9 @@ class CCP_Event_Tracker
     if (!$media_type) {
       return;
     }
-
+    
     $details = array(
+      'file_url' => $file_url,
       'file_name' => basename($file_path),
       'file_type' => $file_type['type'],
       'file_size' => filesize($file_path),
@@ -406,6 +408,7 @@ class CCP_Event_Tracker
 
     // Get media type
     $file_path = get_attached_file($attachment_id);
+    $file_url = wp_get_attachment_url($attachment_id);
     $file_type = wp_check_filetype($file_path);
     $media_type = $this->get_media_type_from_mime($file_type['type']);
 
@@ -415,6 +418,7 @@ class CCP_Event_Tracker
     }
 
     $details = array(
+      'file_url' => $file_url,
       'file_name' => basename($file_path),
       'file_type' => $file_type['type'],
       'media_type' => $media_type
@@ -448,6 +452,7 @@ class CCP_Event_Tracker
 
     // Get media type before deletion
     $file_path = get_attached_file($attachment_id);
+    $file_url = wp_get_attachment_url($attachment_id);
     $file_type = wp_check_filetype($file_path);
     $media_type = $this->get_media_type_from_mime($file_type['type']);
 
@@ -457,6 +462,7 @@ class CCP_Event_Tracker
     }
 
     $details = array(
+      'file_url' => $file_url,
       'file_name' => basename($file_path),
       'file_type' => $file_type['type'],
       'media_type' => $media_type
@@ -500,6 +506,7 @@ class CCP_Event_Tracker
 
     // Get media type
     $file_path = get_attached_file($post_id);
+    $file_url = wp_get_attachment_url($post_id);
     $file_type = wp_check_filetype($file_path);
     $media_type = $this->get_media_type_from_mime($file_type['type']);
 
@@ -509,6 +516,7 @@ class CCP_Event_Tracker
     }
 
     $details = array(
+      'file_url' => $file_url,
       'meta_key' => $meta_key,
       'file_name' => basename($file_path),
       'media_type' => $media_type

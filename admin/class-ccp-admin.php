@@ -206,7 +206,7 @@ class CCP_Admin
           $formatted->is_media = true;
           break;
         case 'application':
-          $formatted->object_type = __('Application', 'change-checkpoints');
+          $formatted->object_type = __('File', 'change-checkpoints');
           $formatted->is_media = true;
           break;
         default:
