@@ -16,10 +16,42 @@ This WordPress plugin implements **automatic continuous tracking** of content ch
 ### Database Schema
 
 ```sql
-wp_ccp_events: id, object_kind(post/term), object_subtype, object_id, action(create/update/delete), details_json, created_at
+wp_ccp_events: id, object_kind(post/term/media), object_subtype, object_id, action(create/update/delete), details_json, created_at
 ```
 
-Simplified single-table structure with automatic event recording.
+Simplified single-table structure with automatic event recording. The `object_kind` field distinguishes between:
+
+- `post` - WordPress posts, pages, and custom post types
+- `term` - Taxonomies (categories, tags, custom taxonomies)  
+- `media` - Media library files (images, videos, audio, documents)
+
+### Event Details JSON Structure
+
+The `details_json` field stores event-specific metadata:
+
+**For Media Events:**
+
+```json
+{
+  "file_name": "image.jpg",
+  "file_type": "image/jpeg", 
+  "file_size": 245760,
+  "media_type": "image",
+  "file_url": "http://site.com/wp-content/uploads/2025/11/image.jpg"
+}
+```
+
+**For Post Events:**
+
+```json
+{
+  "status_from": "draft",
+  "status_to": "publish",
+  "thumbnail_changed": true,
+  "template_changed": true,
+  "parent_changed": true
+}
+```
 
 ## Development Patterns
 
@@ -64,6 +96,20 @@ Media events are grouped under the "WordPress" category with specific subtypes:
 - `video` - Video files (MP4, AVI, MOV, etc.)
 - `audio` - Audio files (MP3, WAV, OGG, etc.)
 - `application` - Documents (PDF, DOC, ZIP, etc.)
+
+#### Media Display Enhancement
+
+Media events in the admin interface display with enhanced formatting:
+
+- **Type Column**: Shows media type (e.g., "Image") with "Media" subtitle for visual distinction
+- **Content Column**: Displays file name as primary content with file URL shown below for easy access
+- **Legacy Support**: Handles both new format (`object_kind = 'media'`) and legacy format (empty `object_kind` with media `object_subtype`)
+
+The interface automatically detects media events using either:
+
+```php
+$event->object_kind === 'media' || in_array($event->object_subtype, array('image', 'video', 'audio', 'application'))
+```
 
 ### WordPress Admin Integration
 
@@ -155,3 +201,46 @@ Generate POT file: `wp i18n make-pot . languages/change-checkpoints.pot`
 - **Clear All Button**: Prominent button for bulk event deletion
 - **Simplified Navigation**: Removed checkpoint-related navigation elements
 - **Automatic Tracking Indicator**: Interface shows that tracking is always active
+
+## Recent Enhancements (v2.1.0)
+
+### Enhanced Media Display
+
+1. **Dual-line Type Display**: Media types now show with enhanced formatting:
+   - Primary type ("Image", "Video", "Audio", "Application") in main text
+   - "Media" subtitle for visual distinction
+
+2. **File URL Display**: Media events show file URLs in the content column:
+   - File name displayed as primary content
+   - Full file URL shown below for easy access and reference
+   - Only displayed for media types (image, video, audio, application)
+
+3. **Legacy Compatibility**: Maintains backward compatibility with existing records:
+   - Handles records with `object_kind = 'media'` (new format)
+   - Handles records with empty `object_kind` but media `object_subtype` (legacy format)
+
+### Implementation Details
+
+**Media Type Detection Pattern:**
+
+```php
+// Works for both new and legacy formats
+if ($event->object_kind === 'media' || in_array($event->object_subtype, array('image', 'video', 'audio', 'application'))) {
+    // Handle as media
+    $formatted->is_media = true;
+}
+```
+
+**Display Structure:**
+
+```html
+<!-- Type Column -->
+<span class="ccp-object-type">Image</span>
+<small class="ccp-details" style="display: block; padding-left: 6px;">Media</small>
+
+<!-- Content Column (for media) -->
+<strong>filename.jpg</strong>
+<small class="ccp-details" style="display: block; padding-left: 0;">
+    http://site.com/wp-content/uploads/2025/11/filename.jpg
+</small>
+```
