@@ -19,7 +19,7 @@ class CCP_Database
   /**
    * Database version
    */
-  const DB_VERSION = '2.2.0';
+  const DB_VERSION = '2.3.0';
 
   /**
    * Option name for database version
@@ -61,8 +61,8 @@ class CCP_Database
     // Check if table exists and get current version
     $installed_version = get_option(self::DB_VERSION_OPTION, '0');
     
-    if (version_compare($installed_version, '2.2.0', '<')) {
-      // Convert ENUM to VARCHAR for better flexibility
+    if (version_compare($installed_version, '2.3.0', '<')) {
+      // Convert ENUM to VARCHAR for better flexibility (supports menu, theme, etc.)
       $wpdb->query("ALTER TABLE $events_table MODIFY COLUMN object_kind varchar(32) NOT NULL");
       $wpdb->query("ALTER TABLE $events_table MODIFY COLUMN action varchar(32) NOT NULL");
     }

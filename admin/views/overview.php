@@ -120,13 +120,54 @@ if (!defined('ABSPATH')) {
                   <?php echo esc_html($event->details['file_url']); ?>
                 </small>
               <?php endif; ?>
-              <?php if (!empty($event->details) && empty($event->is_theme)): ?>
+              <?php if (!empty($event->is_menu_item) && $event->is_menu_item && !empty($event->details['item_type'])): ?>
+                <small class="ccp-details" style="display: block; padding-left: 0;">
+                  <?php 
+                  // Show the type of menu item instead of repeating the title
+                  $item_type = $event->details['item_type'];
+                  $object_type = !empty($event->details['object_type']) ? $event->details['object_type'] : '';
+                  
+                  switch ($item_type) {
+                    case 'custom':
+                      echo esc_html__('Custom Link', 'change-checkpoints');
+                      break;
+                    case 'post_type':
+                      // Show specific post type name
+                      if ($object_type === 'page') {
+                        echo esc_html__('Page', 'change-checkpoints');
+                      } elseif ($object_type === 'post') {
+                        echo esc_html__('Post', 'change-checkpoints');
+                      } else {
+                        // Custom post type - try to get label
+                        $post_type_obj = get_post_type_object($object_type);
+                        echo $post_type_obj ? esc_html($post_type_obj->labels->singular_name) : esc_html(ucfirst($object_type));
+                      }
+                      break;
+                    case 'taxonomy':
+                      // Show specific taxonomy name
+                      if ($object_type === 'category') {
+                        echo esc_html__('Category', 'change-checkpoints');
+                      } elseif ($object_type === 'post_tag') {
+                        echo esc_html__('Tag', 'change-checkpoints');
+                      } else {
+                        // Custom taxonomy - try to get label
+                        $taxonomy_obj = get_taxonomy($object_type);
+                        echo $taxonomy_obj ? esc_html($taxonomy_obj->labels->singular_name) : esc_html(ucfirst($object_type));
+                      }
+                      break;
+                    default:
+                      echo esc_html(ucfirst($item_type));
+                  }
+                  ?>
+                </small>
+              <?php endif; ?>
+              <?php if (!empty($event->details) && empty($event->is_theme) && empty($event->is_menu)): ?>
                 <br><small class="ccp-details">
                   <?php
                   $detail_parts = array();
                   foreach ($event->details as $key => $value) {
-                    // Skip file_url as it's already displayed above
-                    if ($key === 'file_url') {
+                    // Skip file_url and menu details as they're already displayed above
+                    if (in_array($key, array('file_url', 'menu_id', 'item_id', 'item_title', 'item_count'))) {
                       continue;
                     }
                     if ($key === 'status_from' && isset($event->details['status_to'])) {

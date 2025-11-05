@@ -94,6 +94,12 @@ class CCP_Event_Tracker
     // Theme tracking hooks
     add_action('switch_theme', array($this, 'track_theme_switch'), 10, 3);
     add_action('delete_theme', array($this, 'track_theme_delete'), 10, 1);
+
+    // Navigation menu tracking hooks
+    add_action('wp_create_nav_menu', array($this, 'track_nav_menu_create'), 10, 2);
+    add_action('wp_update_nav_menu', array($this, 'track_nav_menu_update'), 10, 1);
+    add_action('wp_delete_nav_menu', array($this, 'track_nav_menu_delete'), 10, 1);
+    add_action('wp_update_nav_menu_item', array($this, 'track_nav_menu_item_update'), 10, 3);
   }
 
   /**
@@ -653,6 +659,166 @@ class CCP_Event_Tracker
       $theme_name,
       'delete',
       array() // No details to avoid confusion
+    );
+  }
+
+  /**
+   * Track navigation menu creation
+   */
+  public function track_nav_menu_create($menu_id, $menu_data)
+  {
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    $menu_name = isset($menu_data['menu-name']) ? $menu_data['menu-name'] : 'Menu';
+
+    // Track the event
+    $this->track_event(
+      'menu',
+      'nav_menu',
+      $menu_id,
+      $menu_name,
+      'create',
+      array(
+        'menu_id' => $menu_id
+      )
+    );
+  }
+
+  /**
+   * Track navigation menu updates
+   */
+  public function track_nav_menu_update($menu_id, $menu_data = array())
+  {
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    $menu_term = wp_get_nav_menu_object($menu_id);
+    $menu_name = $menu_term ? $menu_term->name : 'Menu';
+
+    // Get menu item count for context
+    $menu_items = wp_get_nav_menu_items($menu_id);
+    $item_count = is_array($menu_items) ? count($menu_items) : 0;
+
+    // Track the event
+    $this->track_event(
+      'menu',
+      'nav_menu',
+      $menu_id,
+      $menu_name,
+      'update',
+      array(
+        'menu_id' => $menu_id,
+        'item_count' => $item_count
+      )
+    );
+  }
+
+  /**
+   * Track navigation menu deletion
+   */
+  public function track_nav_menu_delete($menu_term)
+  {
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    $menu_name = is_object($menu_term) && isset($menu_term->name) ? $menu_term->name : 'Menu';
+    $menu_id = is_object($menu_term) && isset($menu_term->term_id) ? $menu_term->term_id : 0;
+
+    // Track the event
+    $this->track_event(
+      'menu',
+      'nav_menu',
+      $menu_id,
+      $menu_name,
+      'delete',
+      array(
+        'menu_id' => $menu_id
+      )
+    );
+  }
+
+  /**
+   * Track navigation menu item updates
+   */
+  public function track_nav_menu_item_update($menu_id, $menu_item_db_id, $args)
+  {
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    // Skip tracking individual item updates during bulk menu save
+    // We'll catch the overall menu update instead
+    if (isset($_POST['action']) && $_POST['action'] === 'update') {
+      return;
+    }
+
+    $menu_term = wp_get_nav_menu_object($menu_id);
+    $menu_name = $menu_term ? $menu_term->name : 'Menu';
+
+    // Get menu item details - try multiple sources for the title
+    $menu_item = get_post($menu_item_db_id);
+    $item_title = '';
+
+    // Try to get title from different sources in order of preference
+    if (isset($args['menu-item-title']) && !empty($args['menu-item-title'])) {
+      // Custom links and manually set titles
+      $item_title = $args['menu-item-title'];
+    } elseif ($menu_item && !empty($menu_item->post_title)) {
+      // Existing menu item post title
+      $item_title = $menu_item->post_title;
+    } elseif (isset($args['menu-item-object-id']) && $args['menu-item-object-id']) {
+      // Try to get title from the source object (page, post, category, etc.)
+      $object_id = $args['menu-item-object-id'];
+      $object_type = isset($args['menu-item-type']) ? $args['menu-item-type'] : '';
+      
+      if ($object_type === 'post_type') {
+        // Get title from post/page
+        $source_post = get_post($object_id);
+        if ($source_post) {
+          $item_title = $source_post->post_title;
+        }
+      } elseif ($object_type === 'taxonomy') {
+        // Get title from category/tag/taxonomy term
+        $source_term = get_term($object_id);
+        if ($source_term && !is_wp_error($source_term)) {
+          $item_title = $source_term->name;
+        }
+      }
+    }
+
+    // Fallback to generic name if we still don't have a title
+    if (empty($item_title)) {
+      $item_title = 'Menu Item';
+    }
+
+    // Determine the type of change
+    $item_details = array(
+      'menu_id' => $menu_id,
+      'item_id' => $menu_item_db_id,
+      'item_title' => $item_title,
+      'item_type' => isset($args['menu-item-type']) ? $args['menu-item-type'] : 'unknown',
+      'object_type' => isset($args['menu-item-object']) ? $args['menu-item-object'] : ''
+    );
+
+    // Check if this is a new item (no existing post) or update
+    $action = $menu_item ? 'update' : 'create';
+
+    // Track the event with the menu name and item info
+    $this->track_event(
+      'menu',
+      'nav_menu_item',
+      $menu_item_db_id,
+      $menu_name . ' → ' . $item_title,
+      $action,
+      $item_details
     );
   }
 

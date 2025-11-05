@@ -61,6 +61,34 @@ msgstr ""
 msgid "Media"
 msgstr ""
 
+#: admin/class-ccp-admin.php:212
+msgid "Menu"
+msgstr ""
+
+#: admin/class-ccp-admin.php:216
+msgid "Menu Item"
+msgstr ""
+
+#: admin/views/overview.php:89
+msgid "Custom Link"
+msgstr ""
+
+#: admin/views/overview.php:93
+msgid "Page"
+msgstr ""
+
+#: admin/views/overview.php:95
+msgid "Post"
+msgstr ""
+
+#: admin/views/overview.php:110
+msgid "Category"
+msgstr ""
+
+#: admin/views/overview.php:112
+msgid "Tag"
+msgstr ""
+
 #: admin/class-ccp-admin.php:225
 msgid "All changes have been cleared."
 msgstr ""

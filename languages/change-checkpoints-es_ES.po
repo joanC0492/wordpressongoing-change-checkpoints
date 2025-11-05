@@ -62,6 +62,34 @@ msgstr "Documento"
 msgid "Media"
 msgstr "Multimedia"
 
+#: admin/class-ccp-admin.php:212
+msgid "Menu"
+msgstr "Menú"
+
+#: admin/class-ccp-admin.php:216
+msgid "Menu Item"
+msgstr "Elemento de Menú"
+
+#: admin/views/overview.php:89
+msgid "Custom Link"
+msgstr "Enlace Personalizado"
+
+#: admin/views/overview.php:93
+msgid "Page"
+msgstr "Página"
+
+#: admin/views/overview.php:95
+msgid "Post"
+msgstr "Entrada"
+
+#: admin/views/overview.php:110
+msgid "Category"
+msgstr "Categoría"
+
+#: admin/views/overview.php:112
+msgid "Tag"
+msgstr "Etiqueta"
+
 #: admin/class-ccp-admin.php:225
 msgid "All changes have been cleared."
 msgstr "Todos los cambios han sido eliminados."

@@ -187,11 +187,15 @@ class CCP_Admin
       $formatted->object_type = $post_type_object ? $post_type_object->labels->singular_name : ucfirst($event->object_subtype);
       $formatted->is_media = false;
       $formatted->is_theme = false;
+      $formatted->is_menu = false;
+      $formatted->is_menu_item = false;
     } elseif ($event->object_kind === 'term') {
       $taxonomy_object = get_taxonomy($event->object_subtype);
       $formatted->object_type = $taxonomy_object ? $taxonomy_object->labels->singular_name : ucfirst($event->object_subtype);
       $formatted->is_media = false;
       $formatted->is_theme = false;
+      $formatted->is_menu = false;
+      $formatted->is_menu_item = false;
     } elseif ($event->object_kind === 'media' || in_array($event->object_subtype, array('image', 'video', 'audio', 'application'))) {
       // Handle media types (both new format with object_kind='media' and legacy format without object_kind)
       switch ($event->object_subtype) {
@@ -199,35 +203,69 @@ class CCP_Admin
           $formatted->object_type = __('Image', 'change-checkpoints');
           $formatted->is_media = true;
           $formatted->is_theme = false;
+          $formatted->is_menu = false;
+          $formatted->is_menu_item = false;
           break;
         case 'video':
           $formatted->object_type = __('Video', 'change-checkpoints');
           $formatted->is_media = true;
           $formatted->is_theme = false;
+          $formatted->is_menu = false;
+          $formatted->is_menu_item = false;
           break;
         case 'audio':
           $formatted->object_type = __('Audio', 'change-checkpoints');
           $formatted->is_media = true;
           $formatted->is_theme = false;
+          $formatted->is_menu = false;
+          $formatted->is_menu_item = false;
           break;
         case 'application':
           $formatted->object_type = __('File', 'change-checkpoints');
           $formatted->is_media = true;
           $formatted->is_theme = false;
+          $formatted->is_menu = false;
+          $formatted->is_menu_item = false;
           break;
         default:
           $formatted->object_type = __('Media', 'change-checkpoints');
           $formatted->is_media = false;
           $formatted->is_theme = false;
+          $formatted->is_menu = false;
+          $formatted->is_menu_item = false;
       }
     } elseif ($event->object_kind === 'theme') {
       $formatted->object_type = __('Theme', 'change-checkpoints');
       $formatted->is_media = false;
       $formatted->is_theme = true;
+      $formatted->is_menu = false;
+      $formatted->is_menu_item = false;
+    } elseif ($event->object_kind === 'menu') {
+      // Handle navigation menu types
+      switch ($event->object_subtype) {
+        case 'nav_menu':
+          $formatted->object_type = __('Menu', 'change-checkpoints');
+          $formatted->is_menu = true;
+          $formatted->is_menu_item = false;
+          break;
+        case 'nav_menu_item':
+          $formatted->object_type = __('Menu Item', 'change-checkpoints');
+          $formatted->is_menu = false;
+          $formatted->is_menu_item = true;
+          break;
+        default:
+          $formatted->object_type = __('Menu', 'change-checkpoints');
+          $formatted->is_menu = true;
+          $formatted->is_menu_item = false;
+      }
+      $formatted->is_media = false;
+      $formatted->is_theme = false;
     } else {
       $formatted->object_type = ucfirst($event->object_subtype);
       $formatted->is_media = false;
       $formatted->is_theme = false;
+      $formatted->is_menu = false;
+      $formatted->is_menu_item = false;
     }
 
     // Set action display text
