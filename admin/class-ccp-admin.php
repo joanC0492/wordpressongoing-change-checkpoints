@@ -188,6 +188,24 @@ class CCP_Admin
     } elseif ($event->object_kind === 'term') {
       $taxonomy_object = get_taxonomy($event->object_subtype);
       $formatted->object_type = $taxonomy_object ? $taxonomy_object->labels->singular_name : ucfirst($event->object_subtype);
+    } elseif ($event->object_kind === 'media') {
+      // Handle media types
+      switch ($event->object_subtype) {
+        case 'image':
+          $formatted->object_type = __('Image', 'change-checkpoints');
+          break;
+        case 'video':
+          $formatted->object_type = __('Video', 'change-checkpoints');
+          break;
+        case 'audio':
+          $formatted->object_type = __('Audio', 'change-checkpoints');
+          break;
+        case 'application':
+          $formatted->object_type = __('Document', 'change-checkpoints');
+          break;
+        default:
+          $formatted->object_type = __('Media', 'change-checkpoints');
+      }
     } else {
       $formatted->object_type = ucfirst($event->object_subtype);
     }

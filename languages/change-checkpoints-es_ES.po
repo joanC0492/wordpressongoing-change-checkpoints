@@ -42,19 +42,39 @@ msgstr "Ocurrió un error. Por favor, inténtalo de nuevo."
 msgid "Operation completed successfully."
 msgstr "Operación completada exitosamente."
 
-#: admin/class-ccp-admin.php:195
+#: admin/class-ccp-admin.php:185
+msgid "Image"
+msgstr "Imagen"
+
+#: admin/class-ccp-admin.php:188
+msgid "Video"
+msgstr "Video"
+
+#: admin/class-ccp-admin.php:191
+msgid "Audio"
+msgstr "Audio"
+
+#: admin/class-ccp-admin.php:194
+msgid "Document"
+msgstr "Documento"
+
+#: admin/class-ccp-admin.php:197
+msgid "Media"
+msgstr "Multimedia"
+
+#: admin/class-ccp-admin.php:225
 msgid "All changes have been cleared."
 msgstr "Todos los cambios han sido eliminados."
 
-#: admin/class-ccp-admin.php:197
+#: admin/class-ccp-admin.php:227
 msgid "Failed to clear changes."
 msgstr "Error al limpiar los cambios."
 
-#: admin/class-ccp-admin.php:215
+#: admin/class-ccp-admin.php:245
 msgid "All changes have been cleared."
 msgstr "Todos los cambios han sido eliminados."
 
-#: admin/class-ccp-admin.php:218
+#: admin/class-ccp-admin.php:248
 msgid "Failed to clear changes."
 msgstr "Error al limpiar los cambios."
 

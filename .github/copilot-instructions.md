@@ -49,6 +49,22 @@ The plugin excludes specific content types to avoid noise:
 - Core WordPress types (see `$excluded_post_types` in `class-ccp-event-tracker.php`)
 - Import operations (`WP_IMPORTING`)
 
+### Media Tracking
+
+The plugin automatically tracks media library events including:
+
+- **File uploads**: Images, videos, audio files, and documents
+- **Media modifications**: Changes to titles, alt text, captions, and metadata
+- **File deletions**: Complete removal of media files from the library
+- **Supported formats**: All standard WordPress media types (MIME type based detection)
+
+Media events are grouped under the "WordPress" category with specific subtypes:
+
+- `image` - All image formats (JPEG, PNG, GIF, WebP, SVG, etc.)
+- `video` - Video files (MP4, AVI, MOV, etc.)
+- `audio` - Audio files (MP3, WAV, OGG, etc.)
+- `application` - Documents (PDF, DOC, ZIP, etc.)
+
 ### WordPress Admin Integration
 
 - **No jQuery dependency** - uses vanilla JavaScript with fetch API

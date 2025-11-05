@@ -41,19 +41,39 @@ msgstr ""
 msgid "Operation completed successfully."
 msgstr ""
 
-#: admin/class-ccp-admin.php:195
-msgid "All changes have been cleared."
+#: admin/class-ccp-admin.php:185
+msgid "Image"
+msgstr ""
+
+#: admin/class-ccp-admin.php:188
+msgid "Video"
+msgstr ""
+
+#: admin/class-ccp-admin.php:191
+msgid "Audio"
+msgstr ""
+
+#: admin/class-ccp-admin.php:194
+msgid "Document"
 msgstr ""
 
 #: admin/class-ccp-admin.php:197
-msgid "Failed to clear changes."
+msgid "Media"
 msgstr ""
 
-#: admin/class-ccp-admin.php:215
+#: admin/class-ccp-admin.php:225
 msgid "All changes have been cleared."
 msgstr ""
 
-#: admin/class-ccp-admin.php:218
+#: admin/class-ccp-admin.php:227
+msgid "Failed to clear changes."
+msgstr ""
+
+#: admin/class-ccp-admin.php:245
+msgid "All changes have been cleared."
+msgstr ""
+
+#: admin/class-ccp-admin.php:248
 msgid "Failed to clear changes."
 msgstr ""
 

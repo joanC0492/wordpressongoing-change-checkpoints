@@ -38,6 +38,16 @@ class CCP_Event_Tracker
   );
 
   /**
+   * Media file types to track
+   */
+  private $tracked_media_types = array(
+    'image',
+    'video',
+    'audio',
+    'application'
+  );
+
+  /**
    * Constructor
    */
   public function __construct()
@@ -74,6 +84,12 @@ class CCP_Event_Tracker
     add_action('created_term', array($this, 'track_term_create'), 10, 3);
     add_action('edited_term', array($this, 'track_term_edit'), 10, 3);
     add_action('delete_term', array($this, 'track_term_delete'), 10, 4);
+
+    // Media tracking hooks
+    add_action('add_attachment', array($this, 'track_media_upload'), 10, 1);
+    add_action('edit_attachment', array($this, 'track_media_edit'), 10, 1);
+    add_action('delete_attachment', array($this, 'track_media_delete'), 10, 1);
+    add_action('updated_postmeta', array($this, 'track_media_meta_update'), 10, 4);
   }
 
   /**
@@ -328,6 +344,213 @@ class CCP_Event_Tracker
       $deleted_term->name,
       'delete'
     );
+  }
+
+  /**
+   * Track media upload
+   */
+  public function track_media_upload($attachment_id)
+  {
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    $attachment = get_post($attachment_id);
+    if (!$attachment || $attachment->post_type !== 'attachment') {
+      return;
+    }
+
+    // Get media type and file info
+    $file_path = get_attached_file($attachment_id);
+    $file_type = wp_check_filetype($file_path);
+    $media_type = $this->get_media_type_from_mime($file_type['type']);
+
+    // Skip if not a tracked media type
+    if (!$media_type) {
+      return;
+    }
+
+    $details = array(
+      'file_name' => basename($file_path),
+      'file_type' => $file_type['type'],
+      'file_size' => filesize($file_path),
+      'media_type' => $media_type
+    );
+
+    // Track the event
+    $this->track_event(
+      'media',
+      $media_type,
+      $attachment_id,
+      $attachment->post_title ?: basename($file_path),
+      'create',
+      $details
+    );
+  }
+
+  /**
+   * Track media edit
+   */
+  public function track_media_edit($attachment_id)
+  {
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    $attachment = get_post($attachment_id);
+    if (!$attachment || $attachment->post_type !== 'attachment') {
+      return;
+    }
+
+    // Get media type
+    $file_path = get_attached_file($attachment_id);
+    $file_type = wp_check_filetype($file_path);
+    $media_type = $this->get_media_type_from_mime($file_type['type']);
+
+    // Skip if not a tracked media type
+    if (!$media_type) {
+      return;
+    }
+
+    $details = array(
+      'file_name' => basename($file_path),
+      'file_type' => $file_type['type'],
+      'media_type' => $media_type
+    );
+
+    // Track the event
+    $this->track_event(
+      'media',
+      $media_type,
+      $attachment_id,
+      $attachment->post_title ?: basename($file_path),
+      'update',
+      $details
+    );
+  }
+
+  /**
+   * Track media deletion
+   */
+  public function track_media_delete($attachment_id)
+  {
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    $attachment = get_post($attachment_id);
+    if (!$attachment || $attachment->post_type !== 'attachment') {
+      return;
+    }
+
+    // Get media type before deletion
+    $file_path = get_attached_file($attachment_id);
+    $file_type = wp_check_filetype($file_path);
+    $media_type = $this->get_media_type_from_mime($file_type['type']);
+
+    // Skip if not a tracked media type
+    if (!$media_type) {
+      return;
+    }
+
+    $details = array(
+      'file_name' => basename($file_path),
+      'file_type' => $file_type['type'],
+      'media_type' => $media_type
+    );
+
+    // Track the event
+    $this->track_event(
+      'media',
+      $media_type,
+      $attachment_id,
+      $attachment->post_title ?: basename($file_path),
+      'delete',
+      $details
+    );
+  }
+
+  /**
+   * Track media meta updates (alt text, caption, description)
+   */
+  public function track_media_meta_update($meta_id, $post_id, $meta_key, $meta_value)
+  {
+    // Only track specific media meta keys
+    $tracked_meta_keys = array(
+      '_wp_attachment_image_alt',
+      '_wp_attachment_metadata'
+    );
+
+    if (!in_array($meta_key, $tracked_meta_keys)) {
+      return;
+    }
+
+    $attachment = get_post($post_id);
+    if (!$attachment || $attachment->post_type !== 'attachment') {
+      return;
+    }
+
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    // Get media type
+    $file_path = get_attached_file($post_id);
+    $file_type = wp_check_filetype($file_path);
+    $media_type = $this->get_media_type_from_mime($file_type['type']);
+
+    // Skip if not a tracked media type
+    if (!$media_type) {
+      return;
+    }
+
+    $details = array(
+      'meta_key' => $meta_key,
+      'file_name' => basename($file_path),
+      'media_type' => $media_type
+    );
+
+    switch ($meta_key) {
+      case '_wp_attachment_image_alt':
+        $details['alt_text_changed'] = true;
+        break;
+      case '_wp_attachment_metadata':
+        $details['metadata_changed'] = true;
+        break;
+    }
+
+    // Track the event
+    $this->track_event(
+      'media',
+      $media_type,
+      $post_id,
+      $attachment->post_title ?: basename($file_path),
+      'update',
+      $details
+    );
+  }
+
+  /**
+   * Get media type from MIME type
+   */
+  private function get_media_type_from_mime($mime_type)
+  {
+    if (!$mime_type) {
+      return null;
+    }
+
+    $type_parts = explode('/', $mime_type);
+    $main_type = $type_parts[0];
+
+    if (in_array($main_type, $this->tracked_media_types)) {
+      return $main_type;
+    }
+
+    return null;
   }
 
   /**
