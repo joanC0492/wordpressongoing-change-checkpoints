@@ -185,29 +185,37 @@ class CCP_Admin
     if ($event->object_kind === 'post') {
       $post_type_object = get_post_type_object($event->object_subtype);
       $formatted->object_type = $post_type_object ? $post_type_object->labels->singular_name : ucfirst($event->object_subtype);
+      $formatted->is_media = false;
     } elseif ($event->object_kind === 'term') {
       $taxonomy_object = get_taxonomy($event->object_subtype);
       $formatted->object_type = $taxonomy_object ? $taxonomy_object->labels->singular_name : ucfirst($event->object_subtype);
-    } elseif ($event->object_kind === 'media') {
-      // Handle media types
+      $formatted->is_media = false;
+    } elseif ($event->object_kind === 'media' || in_array($event->object_subtype, array('image', 'video', 'audio', 'application'))) {
+      // Handle media types (both new format with object_kind='media' and legacy format without object_kind)
       switch ($event->object_subtype) {
         case 'image':
           $formatted->object_type = __('Image', 'change-checkpoints');
+          $formatted->is_media = true;
           break;
         case 'video':
           $formatted->object_type = __('Video', 'change-checkpoints');
+          $formatted->is_media = true;
           break;
         case 'audio':
           $formatted->object_type = __('Audio', 'change-checkpoints');
+          $formatted->is_media = true;
           break;
         case 'application':
-          $formatted->object_type = __('Document', 'change-checkpoints');
+          $formatted->object_type = __('Application', 'change-checkpoints');
+          $formatted->is_media = true;
           break;
         default:
           $formatted->object_type = __('Media', 'change-checkpoints');
+          $formatted->is_media = false;
       }
     } else {
       $formatted->object_type = ucfirst($event->object_subtype);
+      $formatted->is_media = false;
     }
 
     // Set action display text

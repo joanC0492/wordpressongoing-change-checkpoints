@@ -29,7 +29,8 @@ if (!defined('ABSPATH')) {
     <form method="get" class="ccp-search-form">
       <input type="hidden" name="page" value="change-checkpoints" />
       <p class="search-box">
-        <label class="screen-reader-text" for="event-search-input"><?php esc_html_e('Search changes:', 'change-checkpoints'); ?></label>
+        <label class="screen-reader-text"
+          for="event-search-input"><?php esc_html_e('Search changes:', 'change-checkpoints'); ?></label>
         <input type="search" id="event-search-input" name="s" value="<?php echo esc_attr($search); ?>"
           placeholder="<?php esc_attr_e('Search by content name or date...', 'change-checkpoints'); ?>" />
         <input type="submit" id="search-submit" class="button"
@@ -49,7 +50,9 @@ if (!defined('ABSPATH')) {
         <p><?php esc_html_e('No changes found matching your search.', 'change-checkpoints'); ?></p>
       <?php else: ?>
         <h3><?php esc_html_e('No changes recorded yet', 'change-checkpoints'); ?></h3>
-        <p><?php esc_html_e('Start making changes to your WordPress content to see them tracked here.', 'change-checkpoints'); ?></p>
+        <p>
+          <?php esc_html_e('Start making changes to your WordPress content to see them tracked here.', 'change-checkpoints'); ?>
+        </p>
       <?php endif; ?>
     </div>
   <?php else: ?>
@@ -92,12 +95,18 @@ if (!defined('ABSPATH')) {
         <?php foreach ($events as $event): ?>
           <tr>
             <td class="column-time">
-              <span class="ccp-time" title="<?php echo esc_attr(wp_date(get_option('date_format') . ' ' . get_option('time_format'), strtotime($event->timestamp))); ?>">
+              <span class="ccp-time"
+                title="<?php echo esc_attr(wp_date(get_option('date_format') . ' ' . get_option('time_format'), strtotime($event->timestamp))); ?>">
                 <?php echo esc_html(wp_date('H:i', strtotime($event->timestamp))); ?>
               </span>
             </td>
             <td class="column-type">
               <span class="ccp-object-type"><?php echo esc_html($event->object_type); ?></span>
+              <?php if (!empty($event->is_media) && $event->is_media): ?>
+                <small class="ccp-details" style="display: block; padding-left: 6px;">
+                  <?php esc_html_e('Media', 'change-checkpoints'); ?>
+                </small>
+              <?php endif; ?>
             </td>
             <td class="column-action">
               <span class="ccp-action ccp-action-<?php echo esc_attr($event->action); ?>">
