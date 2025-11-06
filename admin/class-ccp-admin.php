@@ -188,6 +188,7 @@ class CCP_Admin
       $formatted->is_media = false;
       $formatted->is_theme = false;
       $formatted->is_plugin = false;
+      $formatted->is_user = false;
       $formatted->is_menu = false;
       $formatted->is_menu_item = false;
     } elseif ($event->object_kind === 'term') {
@@ -196,6 +197,7 @@ class CCP_Admin
       $formatted->is_media = false;
       $formatted->is_theme = false;
       $formatted->is_plugin = false;
+      $formatted->is_user = false;
       $formatted->is_menu = false;
       $formatted->is_menu_item = false;
     } elseif ($event->object_kind === 'media' || in_array($event->object_subtype, array('image', 'video', 'audio', 'application'))) {
@@ -206,6 +208,7 @@ class CCP_Admin
           $formatted->is_media = true;
           $formatted->is_theme = false;
           $formatted->is_plugin = false;
+          $formatted->is_user = false;
           $formatted->is_menu = false;
           $formatted->is_menu_item = false;
           break;
@@ -214,6 +217,7 @@ class CCP_Admin
           $formatted->is_media = true;
           $formatted->is_theme = false;
           $formatted->is_plugin = false;
+          $formatted->is_user = false;
           $formatted->is_menu = false;
           $formatted->is_menu_item = false;
           break;
@@ -222,6 +226,7 @@ class CCP_Admin
           $formatted->is_media = true;
           $formatted->is_theme = false;
           $formatted->is_plugin = false;
+          $formatted->is_user = false;
           $formatted->is_menu = false;
           $formatted->is_menu_item = false;
           break;
@@ -230,6 +235,7 @@ class CCP_Admin
           $formatted->is_media = true;
           $formatted->is_theme = false;
           $formatted->is_plugin = false;
+          $formatted->is_user = false;
           $formatted->is_menu = false;
           $formatted->is_menu_item = false;
           break;
@@ -245,6 +251,7 @@ class CCP_Admin
       $formatted->is_media = false;
       $formatted->is_theme = true;
       $formatted->is_plugin = false;
+      $formatted->is_user = false;
       $formatted->is_menu = false;
       $formatted->is_menu_item = false;
     } elseif ($event->object_kind === 'plugin') {
@@ -252,6 +259,15 @@ class CCP_Admin
       $formatted->is_media = false;
       $formatted->is_theme = false;
       $formatted->is_plugin = true;
+      $formatted->is_user = false;
+      $formatted->is_menu = false;
+      $formatted->is_menu_item = false;
+    } elseif ($event->object_kind === 'user') {
+      $formatted->object_type = __('User', 'change-checkpoints');
+      $formatted->is_media = false;
+      $formatted->is_theme = false;
+      $formatted->is_plugin = false;
+      $formatted->is_user = true;
       $formatted->is_menu = false;
       $formatted->is_menu_item = false;
     } elseif ($event->object_kind === 'menu') {
@@ -275,11 +291,13 @@ class CCP_Admin
       $formatted->is_media = false;
       $formatted->is_theme = false;
       $formatted->is_plugin = false;
+      $formatted->is_user = false;
     } else {
       $formatted->object_type = ucfirst($event->object_subtype);
       $formatted->is_media = false;
       $formatted->is_theme = false;
       $formatted->is_plugin = false;
+      $formatted->is_user = false;
       $formatted->is_menu = false;
       $formatted->is_menu_item = false;
     }

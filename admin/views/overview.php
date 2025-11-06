@@ -161,7 +161,12 @@ if (!defined('ABSPATH')) {
                   ?>
                 </small>
               <?php endif; ?>
-              <?php if (!empty($event->details) && empty($event->is_theme) && empty($event->is_plugin) && empty($event->is_menu)): ?>
+              <?php if (!empty($event->is_user) && $event->is_user && !empty($event->details['role_display_name'])): ?>
+                <small class="ccp-details" style="display: block; padding-left: 0;">
+                  <?php echo esc_html($event->details['role_display_name']); ?>
+                </small>
+              <?php endif; ?>
+              <?php if (!empty($event->details) && empty($event->is_theme) && empty($event->is_plugin) && empty($event->is_user) && empty($event->is_menu)): ?>
                 <br><small class="ccp-details">
                   <?php
                   $detail_parts = array();

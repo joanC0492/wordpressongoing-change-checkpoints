@@ -100,6 +100,11 @@ class CCP_Event_Tracker
     add_action('deactivated_plugin', array($this, 'track_plugin_deactivate'), 10, 2);
     add_action('deleted_plugin', array($this, 'track_plugin_delete'), 10, 2);
 
+    // User tracking hooks
+    add_action('user_register', array($this, 'track_user_create'), 10, 2);
+    add_action('profile_update', array($this, 'track_user_update'), 10, 3);
+    add_action('delete_user', array($this, 'track_user_delete'), 10, 3);
+
     // Navigation menu tracking
     add_action('wp_create_nav_menu', array($this, 'track_nav_menu_create'), 10, 2);
     add_action('wp_update_nav_menu', array($this, 'track_nav_menu_update'), 10, 1);
@@ -784,6 +789,155 @@ class CCP_Event_Tracker
         'plugin_file' => $plugin_file,
         'deleted' => $deleted,
         'version' => !empty($plugin_data['Version']) ? $plugin_data['Version'] : ''
+      )
+    );
+  }
+
+  /**
+   * Track user creation
+   */
+  public function track_user_create($user_id, $userdata)
+  {
+    // Debug: Log user creation
+    error_log('CCP Debug - User created: ID ' . $user_id);
+
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    // Get user data
+    $user = get_userdata($user_id);
+    if (!$user) {
+      return;
+    }
+
+    $username = $user->user_login;
+    $user_roles = $user->roles;
+    $primary_role = !empty($user_roles) ? $user_roles[0] : 'subscriber';
+
+    // Get role display name
+    global $wp_roles;
+    $role_display_name = isset($wp_roles->roles[$primary_role]['name']) ? 
+      $wp_roles->roles[$primary_role]['name'] : ucfirst($primary_role);
+
+    // Track the event
+    $this->track_event(
+      'user',
+      'user',
+      $user_id,
+      $username,
+      'create',
+      array(
+        'user_email' => $user->user_email,
+        'role' => $primary_role,
+        'role_display_name' => $role_display_name,
+        'display_name' => $user->display_name ?: $username
+      )
+    );
+  }
+
+  /**
+   * Track user profile updates
+   */
+  public function track_user_update($user_id, $old_user_data, $userdata)
+  {
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    // Get current user data
+    $user = get_userdata($user_id);
+    if (!$user) {
+      return;
+    }
+
+    $username = $user->user_login;
+    $user_roles = $user->roles;
+    $primary_role = !empty($user_roles) ? $user_roles[0] : 'subscriber';
+
+    // Get role display name
+    global $wp_roles;
+    $role_display_name = isset($wp_roles->roles[$primary_role]['name']) ? 
+      $wp_roles->roles[$primary_role]['name'] : ucfirst($primary_role);
+
+    // Track specific changes
+    $changes = array();
+    
+    // Check for role changes
+    $old_roles = $old_user_data->roles;
+    $old_primary_role = !empty($old_roles) ? $old_roles[0] : 'subscriber';
+    if ($primary_role !== $old_primary_role) {
+      $changes['role_changed'] = array(
+        'from' => $old_primary_role,
+        'to' => $primary_role
+      );
+    }
+
+    // Check for email changes
+    if ($user->user_email !== $old_user_data->user_email) {
+      $changes['email_changed'] = true;
+    }
+
+    // Check for display name changes
+    if ($user->display_name !== $old_user_data->display_name) {
+      $changes['display_name_changed'] = true;
+    }
+
+    // Track the event
+    $this->track_event(
+      'user',
+      'user',
+      $user_id,
+      $username,
+      'update',
+      array_merge(array(
+        'user_email' => $user->user_email,
+        'role' => $primary_role,
+        'role_display_name' => $role_display_name,
+        'display_name' => $user->display_name ?: $username
+      ), $changes)
+    );
+  }
+
+  /**
+   * Track user deletion
+   */
+  public function track_user_delete($user_id, $reassign, $user)
+  {
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    // User object is provided by the hook
+    if (!$user || !isset($user->user_login)) {
+      return;
+    }
+
+    $username = $user->user_login;
+    $user_roles = $user->roles;
+    $primary_role = !empty($user_roles) ? $user_roles[0] : 'subscriber';
+
+    // Get role display name
+    global $wp_roles;
+    $role_display_name = isset($wp_roles->roles[$primary_role]['name']) ? 
+      $wp_roles->roles[$primary_role]['name'] : ucfirst($primary_role);
+
+    // Track the event
+    $this->track_event(
+      'user',
+      'user',
+      $user_id,
+      $username,
+      'delete',
+      array(
+        'user_email' => $user->user_email,
+        'role' => $primary_role,
+        'role_display_name' => $role_display_name,
+        'display_name' => $user->display_name ?: $username,
+        'reassign_to' => $reassign
       )
     );
   }
