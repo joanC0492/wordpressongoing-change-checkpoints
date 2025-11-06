@@ -111,12 +111,15 @@ class CCP_Event_Tracker
     // Note: Using delete_term instead of wp_delete_nav_menu for better data access
     // add_action('wp_delete_nav_menu', array($this, 'track_nav_menu_delete'), 10, 1);
     add_action('wp_update_nav_menu_item', array($this, 'track_nav_menu_item_update'), 10, 3);
-    
+
     // Track menu item deletions - special handling since they're nav_menu_item posts
     add_action('before_delete_post', array($this, 'track_nav_menu_item_delete'), 5, 2);
-    
+
     // Track menu deletion via delete_term hook - provides better access to menu data
     add_action('delete_term', array($this, 'track_nav_menu_term_delete'), 10, 4);
+
+    // WordPress Settings tracking
+    add_action('update_option', array($this, 'track_setting_update'), 10, 3);
   }
 
   /**
@@ -696,7 +699,7 @@ class CCP_Event_Tracker
     if (!function_exists('get_plugin_data')) {
       require_once ABSPATH . 'wp-admin/includes/plugin.php';
     }
-    
+
     $plugin_path = ABSPATH . 'wp-content/plugins/' . $plugin;
     $plugin_data = get_plugin_data($plugin_path);
     $plugin_name = !empty($plugin_data['Name']) ? $plugin_data['Name'] : basename($plugin, '.php');
@@ -730,7 +733,7 @@ class CCP_Event_Tracker
     if (!function_exists('get_plugin_data')) {
       require_once ABSPATH . 'wp-admin/includes/plugin.php';
     }
-    
+
     $plugin_path = ABSPATH . 'wp-content/plugins/' . $plugin;
     $plugin_data = get_plugin_data($plugin_path);
     $plugin_name = !empty($plugin_data['Name']) ? $plugin_data['Name'] : basename($plugin, '.php');
@@ -768,14 +771,14 @@ class CCP_Event_Tracker
     // Try to get plugin data - may not be available if already deleted
     $plugin_data = array();
     $plugin_path = ABSPATH . 'wp-content/plugins/' . $plugin_file;
-    
+
     if (file_exists($plugin_path)) {
       if (!function_exists('get_plugin_data')) {
         require_once ABSPATH . 'wp-admin/includes/plugin.php';
       }
       $plugin_data = get_plugin_data($plugin_path);
     }
-    
+
     $plugin_name = !empty($plugin_data['Name']) ? $plugin_data['Name'] : basename($plugin_file, '.php');
 
     // Track the event
@@ -818,7 +821,7 @@ class CCP_Event_Tracker
 
     // Get role display name
     global $wp_roles;
-    $role_display_name = isset($wp_roles->roles[$primary_role]['name']) ? 
+    $role_display_name = isset($wp_roles->roles[$primary_role]['name']) ?
       $wp_roles->roles[$primary_role]['name'] : ucfirst($primary_role);
 
     // Track the event
@@ -859,12 +862,12 @@ class CCP_Event_Tracker
 
     // Get role display name
     global $wp_roles;
-    $role_display_name = isset($wp_roles->roles[$primary_role]['name']) ? 
+    $role_display_name = isset($wp_roles->roles[$primary_role]['name']) ?
       $wp_roles->roles[$primary_role]['name'] : ucfirst($primary_role);
 
     // Track specific changes
     $changes = array();
-    
+
     // Check for role changes
     $old_roles = $old_user_data->roles;
     $old_primary_role = !empty($old_roles) ? $old_roles[0] : 'subscriber';
@@ -922,7 +925,7 @@ class CCP_Event_Tracker
 
     // Get role display name
     global $wp_roles;
-    $role_display_name = isset($wp_roles->roles[$primary_role]['name']) ? 
+    $role_display_name = isset($wp_roles->roles[$primary_role]['name']) ?
       $wp_roles->roles[$primary_role]['name'] : ucfirst($primary_role);
 
     // Track the event
@@ -1088,7 +1091,7 @@ class CCP_Event_Tracker
       // Try to get title from the source object (page, post, category, etc.)
       $object_id = $args['menu-item-object-id'];
       $object_type = isset($args['menu-item-type']) ? $args['menu-item-type'] : '';
-      
+
       if ($object_type === 'post_type') {
         // Get title from post/page
         $source_post = get_post($object_id);
@@ -1187,7 +1190,7 @@ class CCP_Event_Tracker
     $menu_terms = wp_get_post_terms($post_id, 'nav_menu');
     $menu_id = 0;
     $menu_name = 'Menu';
-    
+
     if (!is_wp_error($menu_terms) && !empty($menu_terms)) {
       $menu_id = $menu_terms[0]->term_id;
       $menu_name = $menu_terms[0]->name;
@@ -1246,5 +1249,179 @@ class CCP_Event_Tracker
     }
 
     return true;
+  }
+
+  /**
+   * Track WordPress Settings changes
+   */
+  public function track_setting_update($option_name, $old_value, $value)
+  {
+    // Check if we should track this request
+    if (!$this->should_track_request()) {
+      return;
+    }
+
+    // https://developer.wordpress.org/apis/options/#general
+    // Define settings we want to track (from WP admin pages)
+    $tracked_settings = array(
+      // General Settings (options-general.php)
+      'blogname' => 'Site Title', /* cambia en Ajustes→Generales (“Título del sitio”). */
+      'blogdescription' => 'Tagline', /* descripción corta del sitio, Ajustes→Generales. */
+      'siteurl' => 'WordPress Address (URL)', /* dirección donde está instalado WordPress. */
+      'home' => 'Site Address (URL)', /* URL pública del sitio (puede ser distinta del core). */
+      'admin_email' => 'Administration Email Address', /* correo principal del administrador. */
+      // 'users_can_register' => 'Membership', /* activa el registro de usuarios, Ajustes→Generales. */
+      'default_role' => 'New User Default Role', /* rol asignado a nuevos usuarios. */
+      'timezone_string' => 'Timezone', /* zona horaria del sitio. */
+      'date_format' => 'Date Format', /* formato de fecha. */
+      'time_format' => 'Time Format', /* formato de hora. */
+      // 'start_of_week' => 'Week Starts On', /* día con el que inicia la semana. */
+      'WPLANG' => 'Site Language', /* idioma del sitio. */
+
+      // Writing Settings (options-writing.php)
+      'default_category' => 'Default Post Category', /* categoría por defecto para nuevas entradas. */
+      'default_post_format' => 'Default Post Format', /* formato por defecto si el tema lo soporta. */
+      'mailserver_url' => 'Mail Server', /* servidor para publicar por email. */
+      'mailserver_login' => 'Login Name', /* usuario del servidor de correo. */
+      'mailserver_pass' => 'Password', /* contraseña del servidor de correo. */
+      'default_email_category' => 'Default Mail Category', /* categoría para entradas enviadas por correo. */
+      'use_balanceTags' => 'Use XHTML', /* balancea etiquetas XHTML automáticamente. */
+
+      // Reading Settings (options-reading.php)
+      'show_on_front' => 'Your homepage displays',
+      'page_on_front' => 'Homepage',
+      'page_for_posts' => 'Posts page',
+      'posts_per_page' => 'Blog pages show at most',
+      'posts_per_rss' => 'Syndication feeds show the most recent',
+      'rss_use_excerpt' => 'For each post in a feed, include',
+      'blog_public' => 'Search engine visibility',
+
+      // Discussion Settings (options-discussion.php)
+      'default_pingback_flag' => 'Default post settings',
+      'default_ping_status' => 'Allow link notifications',
+      'default_comment_status' => 'Allow comments',
+      'require_name_email' => 'Comment author must fill out name and email',
+      'comment_registration' => 'Users must be registered and logged in to comment',
+      'close_comments_for_old_posts' => 'Automatically close comments',
+      'close_comments_days_old' => 'Close comments for posts older than X days',
+      'thread_comments' => 'Enable threaded comments',
+      'thread_comments_depth' => 'Threaded comments depth',
+      'page_comments' => 'Break comments into pages',
+      'comments_per_page' => 'Comments per page',
+      'default_comments_page' => 'Comments should be displayed with older/newer',
+      'comment_order' => 'Comments should be displayed with top/bottom',
+      'comments_notify' => 'Email me whenever anyone posts a comment',
+      'moderation_notify' => 'Email me whenever a comment is held for moderation',
+      'comment_moderation' => 'Comment must be manually approved',
+      'comment_previously_approved' => 'Comment author must have a previously approved comment',
+      'comment_max_links' => 'Hold a comment in the queue if it contains X links',
+      'moderation_keys' => 'Comment Moderation',
+      'disallowed_keys' => 'Disallowed Comment Keys',
+
+      // Media Settings (options-media.php)
+      'thumbnail_size_w' => 'Thumbnail size width',
+      'thumbnail_size_h' => 'Thumbnail size height',
+      'thumbnail_crop' => 'Thumbnail size crop',
+      'medium_size_w' => 'Medium size width',
+      'medium_size_h' => 'Medium size height',
+      'medium_large_size_w' => 'Medium large size width',
+      'medium_large_size_h' => 'Medium large size height',
+      'large_size_w' => 'Large size width',
+      'large_size_h' => 'Large size height',
+      'uploads_use_yearmonth_folders' => 'Organize uploads into month- and year-based folders',
+
+      // Permalink Settings (options-permalink.php)
+      'permalink_structure' => 'Permalink Structure',
+      'category_base' => 'Category base',
+      'tag_base' => 'Tag base'
+    );
+
+    // Only track if this is a setting we care about
+    if (!array_key_exists($option_name, $tracked_settings)) {
+      return;
+    }
+
+    // Omitir si los valores son iguales (sin cambio real)
+    if ($old_value === $value) {
+      return;
+    }
+
+    // Determine which settings page this belongs to
+    $setting_page = $this->get_setting_page($option_name);
+
+    // Prepare details about the change
+    $details = array(
+      'option_name' => $option_name,
+      'setting_label' => $tracked_settings[$option_name],
+      'old_value' => $this->format_setting_value($option_name, $old_value),
+      'new_value' => $this->format_setting_value($option_name, $value),
+      'settings_page' => $setting_page
+    );
+
+    // Track the event
+    $this->track_event(
+      'setting',
+      $setting_page,
+      0, // No specific ID for settings
+      $tracked_settings[$option_name],
+      'update',
+      $details
+    );
+  }
+
+  /**
+   * Determine which settings page a setting belongs to
+   */
+  private function get_setting_page($option_name)
+  {
+    $setting_pages = array(
+      'general' => array('blogname', 'blogdescription', 'siteurl', 'home', 'admin_email', 'users_can_register', 'default_role', 'timezone_string', 'date_format', 'time_format', 'start_of_week', 'WPLANG'),
+      'writing' => array('default_category', 'default_post_format', 'mailserver_url', 'mailserver_login', 'mailserver_pass', 'default_email_category', 'use_balanceTags'),
+      'reading' => array('show_on_front', 'page_on_front', 'page_for_posts', 'posts_per_page', 'posts_per_rss', 'rss_use_excerpt', 'blog_public'),
+      'discussion' => array('default_pingback_flag', 'default_ping_status', 'default_comment_status', 'require_name_email', 'comment_registration', 'close_comments_for_old_posts', 'close_comments_days_old', 'thread_comments', 'thread_comments_depth', 'page_comments', 'comments_per_page', 'default_comments_page', 'comment_order', 'comments_notify', 'moderation_notify', 'comment_moderation', 'comment_previously_approved', 'comment_max_links', 'moderation_keys', 'disallowed_keys'),
+      'media' => array('thumbnail_size_w', 'thumbnail_size_h', 'thumbnail_crop', 'medium_size_w', 'medium_size_h', 'medium_large_size_w', 'medium_large_size_h', 'large_size_w', 'large_size_h', 'uploads_use_yearmonth_folders'),
+      'permalink' => array('permalink_structure', 'category_base', 'tag_base')
+    );
+
+    foreach ($setting_pages as $page => $options) {
+      if (in_array($option_name, $options)) {
+        return $page;
+      }
+    }
+
+    return 'general'; // Default fallback
+  }
+
+  /**
+   * Format setting values for display
+   */
+  private function format_setting_value($option_name, $value)
+  {
+    // Manejar valores booleanos
+    if (is_bool($value) || $value === '0' || $value === '1') {
+      return $value ? 'Yes' : 'No';
+    }
+
+    // Manejar valores vacíos
+    if (empty($value)) {
+      return '(empty)';
+    }
+
+    // Handle arrays (Para algunas configuraciones complejas)
+    if (is_array($value)) {
+      return json_encode($value);
+    }
+
+    // Handle passwords - don't store actual passwords
+    if (strpos($option_name, 'pass') !== false || strpos($option_name, 'password') !== false) {
+      return '(hidden)';
+    }
+
+    // Handle long strings
+    if (strlen($value) > 100) {
+      return substr($value, 0, 100) . '...';
+    }
+
+    return (string) $value;
   }
 }

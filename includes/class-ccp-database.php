@@ -167,7 +167,7 @@ class CCP_Database
     }
 
     // Object kind filter
-    if (!empty($args['object_kind']) && in_array($args['object_kind'], array('post', 'term', 'media', 'theme'))) {
+    if (!empty($args['object_kind']) && in_array($args['object_kind'], array('post', 'term', 'media', 'theme', 'plugin', 'menu', 'user', 'setting'))) {
       $where_clauses[] = "object_kind = %s";
       $where_values[] = $args['object_kind'];
     }
@@ -222,7 +222,7 @@ class CCP_Database
     }
 
     // Object kind filter
-    if (!empty($args['object_kind']) && in_array($args['object_kind'], array('post', 'term', 'media', 'theme'))) {
+    if (!empty($args['object_kind']) && in_array($args['object_kind'], array('post', 'term', 'media', 'theme', 'plugin', 'menu', 'user', 'setting'))) {
       $where_clauses[] = "object_kind = %s";
       $where_values[] = $args['object_kind'];
     }

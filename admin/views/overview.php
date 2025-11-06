@@ -166,7 +166,18 @@ if (!defined('ABSPATH')) {
                   <?php echo esc_html($event->details['role_display_name']); ?>
                 </small>
               <?php endif; ?>
-              <?php if (!empty($event->details) && empty($event->is_theme) && empty($event->is_plugin) && empty($event->is_user) && empty($event->is_menu)): ?>
+              <?php if (!empty($event->is_setting) && $event->is_setting && !empty($event->details)): ?>
+                <small class="ccp-details" style="display: block; padding-left: 0; margin-top: 4px;">
+                  <?php if (!empty($event->details['old_value']) || !empty($event->details['new_value'])): ?>
+                    <strong><?php echo esc_html__('From:', 'change-checkpoints'); ?></strong> 
+                    <?php echo esc_html($event->details['old_value'] ?? '(empty)'); ?>
+                    <br>
+                    <strong><?php echo esc_html__('To:', 'change-checkpoints'); ?></strong> 
+                    <?php echo esc_html($event->details['new_value'] ?? '(empty)'); ?>
+                  <?php endif; ?>
+                </small>
+              <?php endif; ?>
+              <?php if (!empty($event->details) && empty($event->is_theme) && empty($event->is_plugin) && empty($event->is_user) && empty($event->is_menu) && empty($event->is_setting)): ?>
                 <br><small class="ccp-details">
                   <?php
                   $detail_parts = array();
