@@ -26,6 +26,9 @@ Simplified single-table structure with automatic event recording. The `object_ki
 - `media` - Media library files (images, videos, audio, documents)
 - `theme` - WordPress themes (activation and deletion)
 - `menu` - Navigation menus and menu items
+- `plugin` - WordPress plugins (activation, deactivation, deletion)
+- `user` - WordPress users (creation, updates, deletion, role changes)
+- `setting` - WordPress Settings (from WP admin settings pages)
 
 **Important**: Uses `VARCHAR(32)` instead of `ENUM` for better flexibility and easier migrations.
 
@@ -75,6 +78,41 @@ The `details_json` field stores event-specific metadata:
   "menu_item_object": "page", // The source object type
   "menu_item_object_id": 456, // ID of the source object
   "method": "delete_term" // Tracking method used
+}
+```
+
+**For Plugin Events:**
+
+```json
+{
+  "plugin_name": "Akismet Anti-Spam",
+  "plugin_version": "5.3.1",
+  "plugin_file": "akismet/akismet.php",
+  "plugin_author": "Automattic"
+}
+```
+
+**For User Events:**
+
+```json
+{
+  "user_login": "johndoe",
+  "user_email": "john@example.com",
+  "role_from": "subscriber",
+  "role_to": "editor",
+  "role_display_name": "Editor"
+}
+```
+
+**For Settings Events:**
+
+```json
+{
+  "option_name": "blogname",
+  "setting_label": "Site Title",
+  "old_value": "My WordPress Site",
+  "new_value": "New Site Name",
+  "settings_page": "general"
 }
 ```
 
@@ -570,3 +608,179 @@ action = 'create' | 'update' | 'delete'
 **Backward Compatibility**: Existing event display logic enhanced without breaking changes to non-menu event types.
 
 **Performance Impact**: Minimal - uses WordPress native hooks with efficient data access patterns.
+
+## Recent Enhancements (v2.4.0)
+
+### WordPress Plugin Tracking System
+
+**Major Addition**: Comprehensive tracking of WordPress plugin lifecycle operations:
+
+1. **Full Plugin Lifecycle Tracking**:
+   - Plugin activation via `activated_plugin` hook
+   - Plugin deactivation via `deactivated_plugin` hook
+   - Plugin deletion via `deleted_plugin` hook
+
+2. **Enhanced Plugin Information**:
+   - Plugin name, version, author information
+   - Plugin file path for identification
+   - Clean interface display with plugin metadata
+
+3. **Event Structure**:
+   ```php
+   object_kind = 'plugin'
+   object_subtype = 'plugin'
+   action = 'activate' | 'deactivate' | 'delete'
+   ```
+
+4. **Interface Integration**:
+   - Plugins show as "Plugin" type in main column
+   - Plugin name displayed prominently in content
+   - Version and author information available in details
+
+### WordPress User Management Tracking
+
+**Major Addition**: Complete user lifecycle and role management tracking:
+
+1. **User Lifecycle Events**:
+   - User registration via `user_register` hook
+   - User profile updates via `profile_update` hook
+   - User deletion via `delete_user` hook
+
+2. **Role Change Detection**:
+   - Automatic detection of role changes during user updates
+   - Display of previous and new roles
+   - Human-readable role names in interface
+
+3. **Enhanced User Information**:
+   ```php
+   object_kind = 'user'
+   object_subtype = 'user'
+   action = 'create' | 'update' | 'delete'
+   ```
+
+4. **Interface Features**:
+   - Users show as "User" type
+   - Role information displayed as subtitle
+   - Clean separation of user management from other events
+
+### WordPress Settings Tracking System
+
+**Major Addition**: Comprehensive tracking of WordPress admin settings changes:
+
+1. **Settings Pages Coverage**:
+   - **General Settings** (`options-general.php`): Site title, tagline, URLs, email, timezone
+   - **Writing Settings** (`options-writing.php`): Default categories, post formats, mail server
+   - **Reading Settings** (`options-reading.php`): Homepage settings, posts per page, RSS
+   - **Discussion Settings** (`options-discussion.php`): Comments, moderation, notifications
+   - **Media Settings** (`options-media.php`): Image sizes, upload organization
+   - **Permalink Settings** (`options-permalink.php`): URL structure, category/tag bases
+
+2. **Intelligent Setting Detection**:
+   - Only tracks relevant admin settings (ignores internal WordPress options)
+   - Filters out unchanged values to prevent noise
+   - Categorizes settings by admin page for better organization
+
+3. **Enhanced Value Handling**:
+   - Password fields are hidden for security (`(hidden)`)
+   - Boolean values displayed as "Yes/No"
+   - Long strings truncated with ellipsis
+   - Empty values shown as "(empty)"
+
+4. **Event Structure**:
+   ```php
+   object_kind = 'setting'
+   object_subtype = 'general|writing|reading|discussion|media|permalink'
+   action = 'update'
+   details = {
+     "option_name": "blogname",
+     "setting_label": "Site Title", 
+     "old_value": "Old Value",
+     "new_value": "New Value",
+     "settings_page": "general"
+   }
+   ```
+
+5. **Interface Enhancement**:
+   - Settings display as "Settings (Page Name)" type
+   - Clear "From → To" value display in details
+   - Organized by settings page for easy identification
+
+### Database Schema Updates
+
+**Enhanced Object Kind Support**: Database whitelist updated to include all new object types:
+
+```php
+// Supported object_kind values
+array('post', 'term', 'media', 'theme', 'plugin', 'menu', 'user', 'setting')
+```
+
+**Interface Flag System**: All event types now use centralized flag initialization:
+
+```php
+// Centralized flag initialization prevents redundant assignments
+$formatted->is_media = false;
+$formatted->is_theme = false; 
+$formatted->is_plugin = false;
+$formatted->is_user = false;
+$formatted->is_menu = false;
+$formatted->is_menu_item = false;
+$formatted->is_setting = false;
+```
+
+### Testing and Validation
+
+**Plugin Tracking Verified**:
+
+✅ Plugin activation with metadata capture  
+✅ Plugin deactivation tracking  
+✅ Plugin deletion with proper cleanup  
+✅ Plugin information display (name, version, author)  
+
+**User Tracking Verified**:
+
+✅ User registration with email capture  
+✅ User profile updates and role changes  
+✅ User deletion tracking  
+✅ Role display names in interface  
+
+**Settings Tracking Verified**:
+
+✅ All six settings pages functional  
+✅ Value change detection and formatting  
+✅ From/To display in interface  
+✅ Security handling for sensitive values  
+✅ Page categorization working correctly  
+
+### Implementation Architecture
+
+**Hook Strategy**: Uses WordPress native hooks for maximum reliability:
+
+```php
+// Plugin tracking
+add_action('activated_plugin', array($this, 'track_plugin_activate'), 10, 2);
+add_action('deactivated_plugin', array($this, 'track_plugin_deactivate'), 10, 2);
+add_action('deleted_plugin', array($this, 'track_plugin_delete'), 10, 2);
+
+// User tracking  
+add_action('user_register', array($this, 'track_user_create'), 10, 2);
+add_action('profile_update', array($this, 'track_user_update'), 10, 3);
+add_action('delete_user', array($this, 'track_user_delete'), 10, 3);
+
+// Settings tracking
+add_action('update_option', array($this, 'track_setting_update'), 10, 3);
+```
+
+**Performance Considerations**: All new tracking systems:
+
+- Use efficient WordPress core functions
+- Include proper exclusion logic to prevent noise
+- Maintain minimal database overhead
+- Integrate seamlessly with existing event structure
+
+### Migration and Compatibility
+
+**Database Compatibility**: All new event types integrate seamlessly with existing `wp_ccp_events` table structure using the established `object_kind` and `object_subtype` pattern.
+
+**Backward Compatibility**: Existing event display logic enhanced without breaking changes to existing event types.
+
+**Interface Consistency**: All new event types follow established display patterns and flag systems for consistent user experience.
